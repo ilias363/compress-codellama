@@ -28,7 +28,6 @@ class DatasetStats:
 
     def __init__(self):
         self.total_loaded = 0
-        self.total_filtered = 0
         self.by_source = Counter()
         self.by_language = Counter()
         self.token_lengths = []
@@ -40,7 +39,6 @@ class DatasetStats:
 Dataset Statistics:
 ==================
 Total loaded:        {self.total_loaded}
-After filtering:     {self.total_filtered}
 Avg tokens:          {avg_tokens:.1f}
 
 By Source:
@@ -54,7 +52,6 @@ By Language (detected):
         """Convert statistics to dictionary for serialization."""
         return {
             'total_loaded': self.total_loaded,
-            'total_filtered': self.total_filtered,
             'avg_token_length': (
                 sum(self.token_lengths) / len(self.token_lengths) if self.token_lengths else 0
             ),
@@ -77,8 +74,30 @@ def detect_language(code: str) -> str:
     return max(scores, key=scores.get) if scores else 'unknown'
 
 
-def load_magicoder(num_samples: int, languages: List[str], stats: DatasetStats) -> List[Dict]:
-    """Load Magicoder-OSS-Instruct dataset."""
+def check_token_length(
+    sample: Dict, tokenizer, min_length: int, max_length: int, stats: DatasetStats
+) -> bool:
+    """Check if sample meets token length requirements and update stats."""
+    text = f"{sample['instruction']}\n{sample.get('input', '')}\n{sample['output']}"
+    tokens = tokenizer.encode(text, add_special_tokens=False)
+    token_count = len(tokens)
+
+    if min_length <= token_count <= max_length:
+        sample['token_count'] = token_count
+        stats.token_lengths.append(token_count)
+        return True
+    return False
+
+
+def load_magicoder(
+    num_samples: int,
+    languages: List[str],
+    stats: DatasetStats,
+    tokenizer,
+    min_length: int = 32,
+    max_length: int = 1024,
+) -> List[Dict]:
+    """Load Magicoder-OSS-Instruct dataset with length filtering before sampling."""
     logger.info(f"Loading Magicoder-OSS-Instruct ({num_samples} samples)...")
     try:
         dataset = load_dataset("ise-uiuc/Magicoder-OSS-Instruct-75K", split="train")
@@ -95,10 +114,14 @@ def load_magicoder(num_samples: int, languages: List[str], stats: DatasetStats) 
             if languages and lang and lang not in languages:
                 continue
 
+            sample = {"instruction": problem, "input": "", "output": solution, "source": "magicoder"}
+            if not check_token_length(sample, tokenizer, min_length, max_length, stats):
+                continue
+
             if lang:
                 stats.by_language[lang] += 1
 
-            samples.append({"instruction": problem, "input": "", "output": solution, "source": "magicoder"})
+            samples.append(sample)
             stats.by_source['magicoder'] += 1
 
             if len(samples) >= num_samples:
@@ -111,8 +134,15 @@ def load_magicoder(num_samples: int, languages: List[str], stats: DatasetStats) 
         return []
 
 
-def load_wizardcoder(num_samples: int, languages: List[str], stats: DatasetStats) -> List[Dict]:
-    """Load WizardCoder/WizardLM Evol-Instruct dataset (code-heavy subset)."""
+def load_wizardcoder(
+    num_samples: int,
+    languages: List[str],
+    stats: DatasetStats,
+    tokenizer,
+    min_length: int = 32,
+    max_length: int = 1024,
+) -> List[Dict]:
+    """Load WizardCoder/WizardLM Evol-Instruct dataset with length filtering before sampling."""
     logger.info(f"Loading WizardCoder-Evol-Instruct ({num_samples} samples)...")
     try:
         dataset = load_dataset("WizardLM/WizardLM_evol_instruct_V2_196k", split="train")
@@ -160,19 +190,16 @@ def load_wizardcoder(num_samples: int, languages: List[str], stats: DatasetStats
             if not any(kw in instruction_lower for kw in code_keywords):
                 continue
 
-            # Filter by language if specified
-            if languages:
-                detected_lang = detect_language(output)
-                if detected_lang not in languages and detected_lang != 'unknown':
-                    continue
-                stats.by_language[detected_lang] += 1
-            else:
-                detected_lang = detect_language(output)
-                stats.by_language[detected_lang] += 1
+            detected_lang = detect_language(output)
+            if languages and detected_lang not in languages and detected_lang != 'unknown':
+                continue
 
-            samples.append(
-                {"instruction": instruction, "input": "", "output": output, "source": "wizardcoder"}
-            )
+            sample = {"instruction": instruction, "input": "", "output": output, "source": "wizardcoder"}
+            if not check_token_length(sample, tokenizer, min_length, max_length, stats):
+                continue
+
+            stats.by_language[detected_lang] += 1
+            samples.append(sample)
             stats.by_source['wizardcoder'] += 1
 
             if len(samples) >= num_samples:
@@ -185,8 +212,15 @@ def load_wizardcoder(num_samples: int, languages: List[str], stats: DatasetStats
         return []
 
 
-def load_code_alpaca(num_samples: int, languages: List[str], stats: DatasetStats) -> List[Dict]:
-    """Load Code Alpaca dataset."""
+def load_code_alpaca(
+    num_samples: int,
+    languages: List[str],
+    stats: DatasetStats,
+    tokenizer,
+    min_length: int = 32,
+    max_length: int = 1024,
+) -> List[Dict]:
+    """Load Code Alpaca dataset with length filtering before sampling."""
     logger.info(f"Loading Code Alpaca ({num_samples} samples)...")
     try:
         dataset = load_dataset("sahil2801/CodeAlpaca-20k", split="train")
@@ -197,24 +231,24 @@ def load_code_alpaca(num_samples: int, languages: List[str], stats: DatasetStats
         samples = []
         for item in tqdm(dataset_list, desc="Processing CodeAlpaca"):
             output = item.get("output", "")
+            instruction = item.get("instruction", "")
+            input_text = item.get("input", "")
 
-            if languages:
-                detected_lang = detect_language(output)
-                if detected_lang not in languages and detected_lang != 'unknown':
-                    continue
-                stats.by_language[detected_lang] += 1
-            else:
-                detected_lang = detect_language(output)
-                stats.by_language[detected_lang] += 1
+            detected_lang = detect_language(output)
+            if languages and detected_lang not in languages and detected_lang != 'unknown':
+                continue
 
-            samples.append(
-                {
-                    "instruction": item.get("instruction", ""),
-                    "input": item.get("input", ""),
-                    "output": output,
-                    "source": "code_alpaca",
-                }
-            )
+            sample = {
+                "instruction": instruction,
+                "input": input_text,
+                "output": output,
+                "source": "code_alpaca",
+            }
+            if not check_token_length(sample, tokenizer, min_length, max_length, stats):
+                continue
+
+            stats.by_language[detected_lang] += 1
+            samples.append(sample)
             stats.by_source['code_alpaca'] += 1
 
             if len(samples) >= num_samples:
@@ -232,27 +266,6 @@ SOURCE_LOADERS = {
     "wizardcoder": load_wizardcoder,
     "code_alpaca": load_code_alpaca,
 }
-
-
-def filter_by_length(
-    samples: List[Dict], tokenizer, max_length: int, min_length: int, stats: DatasetStats
-) -> List[Dict]:
-    """Filter samples by token length."""
-    logger.info(f"Filtering by length ({min_length}-{max_length} tokens)...")
-    filtered = []
-
-    for sample in tqdm(samples, desc="Filtering by length"):
-        text = f"{sample['instruction']}\n{sample.get('input', '')}\n{sample['output']}"
-        tokens = tokenizer.encode(text, add_special_tokens=False)
-        token_count = len(tokens)
-
-        if min_length <= token_count <= max_length:
-            sample['token_count'] = token_count
-            filtered.append(sample)
-            stats.token_lengths.append(token_count)
-
-    logger.info(f"  Kept {len(filtered)} / {len(samples)} samples")
-    return filtered
 
 
 def create_calibration_subset(

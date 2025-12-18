@@ -7,13 +7,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.config import SEED, DATASET_CONFIG, MODEL_CONFIG
-from utils.data_utils import (
-    DatasetStats,
-    SOURCE_LOADERS,
-    filter_by_length,
-    create_calibration_subset,
-    create_awq_calibration,
-)
+from utils.data_utils import DatasetStats, SOURCE_LOADERS, create_calibration_subset, create_awq_calibration
 from utils.model_utils import load_tokenizer
 from utils.io_utils import save_dataset, save_statistics
 
@@ -147,7 +141,14 @@ def main():
     for source, num_samples in zip(sources, samples_per_source):
         loader = SOURCE_LOADERS.get(source.lower())
         if loader:
-            samples = loader(num_samples, languages, stats)
+            samples = loader(
+                num_samples,
+                languages,
+                stats,
+                tokenizer=tokenizer,
+                min_length=args.min_length,
+                max_length=args.max_length,
+            )
             all_samples.extend(samples)
             stats.total_loaded += len(samples)
         else:
@@ -156,21 +157,16 @@ def main():
 
     logger.info(f"\nTotal samples loaded: {len(all_samples)}")
 
-    filtered_samples = filter_by_length(all_samples, tokenizer, args.max_length, args.min_length, stats)
-    stats.total_filtered = len(filtered_samples)
-
-    logger.info(f"Samples after filtering: {len(filtered_samples)}")
-
-    random.shuffle(filtered_samples)
+    random.shuffle(all_samples)
 
     train_path = output_dir / args.train_file
     if args.format == 'jsonl':
         train_path = train_path.with_suffix('.jsonl')
-    save_dataset(filtered_samples, train_path, args.format)
+    save_dataset(all_samples, train_path, args.format)
 
     logger.info(f"\nCreating Wanda calibration subset ({args.calib_samples} samples)...")
     calib_samples = create_calibration_subset(
-        filtered_samples, args.calib_samples, tokenizer, max_length=512, stratified=args.stratified_calib
+        all_samples, args.calib_samples, tokenizer, max_length=512, stratified=args.stratified_calib
     )
     save_dataset(calib_samples, output_dir / args.calib_file, args.format)
 
@@ -185,7 +181,7 @@ def main():
     logger.info("\n" + "=" * 60)
     logger.info("Dataset preparation complete!")
     logger.info("=" * 60)
-    logger.info(f"  Training data:      {train_path} ({len(filtered_samples)} samples)")
+    logger.info(f"  Training data:      {train_path} ({len(all_samples)} samples)")
     logger.info(f"  Wanda calibration:  {output_dir / args.calib_file} ({len(calib_samples)} samples)")
     logger.info(
         f"  AWQ calibration:    {output_dir / args.awq_calib_file} ({len(awq_calib_samples)} samples)"
