@@ -110,8 +110,30 @@ def main():
         default=DATASET_CONFIG['save_stats'],
         help="Save dataset statistics",
     )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="count",
+        default=0,
+        help="Increase logging verbosity (-v for INFO, -vv for DEBUG)",
+    )
+    parser.add_argument(
+        "--quiet",
+        "-q",
+        action="store_true",
+        help="Suppress all logging except errors",
+    )
 
     args = parser.parse_args()
+
+    if args.quiet:
+        logging.getLogger().setLevel(logging.ERROR)
+    elif args.verbose >= 2:
+        logging.getLogger().setLevel(logging.DEBUG)
+    elif args.verbose == 1:
+        logging.getLogger().setLevel(logging.INFO)
+    else:
+        logging.getLogger().setLevel(logging.WARNING)
 
     random.seed(args.seed)
 
@@ -178,7 +200,7 @@ def main():
         save_statistics(stats.to_dict(), output_dir / "dataset_stats.json")
         print(stats.summary())
 
-    logger.info("\n" + "=" * 60)
+    logger.info("=" * 60)
     logger.info("Dataset preparation complete!")
     logger.info("=" * 60)
     logger.info(f"  Training data:      {train_path} ({len(all_samples)} samples)")
