@@ -1,0 +1,16 @@
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Model files (too large for git)
+outputs/*
+!outputs/.gitkeep
+
+# Dataset files (regenerate locally)
+datasets/*
+!datasets/.gitkeep
+
+# Environment
+venv/
