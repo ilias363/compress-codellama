@@ -1,0 +1,26 @@
+{
+  "seed": 363,
+  "model": {
+    "name": "codellama/CodeLlama-7b-Instruct-hf",
+    "output_dir": "./outputs"
+  },
+  "dataset_prep": {
+    "sources": ["magicoder", "wizardcoder", "code_alpaca"],
+    "samples_per_source": [10000, 5000, 5000],
+    "output_dir": "./datasets",
+    "train_file": "train.json",
+    "calib_file": "calib_512.json",
+    "awq_calib_file": "calib_awq_128.json",
+    "max_length": 1024,
+    "min_length": 32,
+    "calib_samples": 512,
+    "awq_calib_samples": 128,
+    "languages": ["python", "javascript", "java", "cpp", "typescript"],
+    "stratified_calib": true,
+    "save_stats": true,
+    "format": "json"
+  },
+  "pruning": {},
+  "qlora": {},
+  "quantization": {}
+}
