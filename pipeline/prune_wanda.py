@@ -79,6 +79,12 @@ def main():
         default=PRUNING_CONFIG.get('nsamples', 128),
         help='Number of calibration samples',
     )
+    parser.add_argument(
+        '--max_calib_seqlen',
+        type=int,
+        default=PRUNING_CONFIG.get('max_calib_seqlen', 128),
+        help='Maximum sequence length for calibration (reduces memory usage)',
+    )
 
     parser.add_argument(
         '--sparsity_ratio',
@@ -177,6 +183,7 @@ def main():
         logger.info(f"Starting Wanda pruning")
         logger.info(f"  Calibration dataset: {args.calib_dataset}")
         logger.info(f"  Calibration samples: {args.nsamples}")
+        logger.info(f"  Max calibration seqlen: {args.max_calib_seqlen}")
         logger.info(f"  Target sparsity: {args.sparsity_ratio}")
         logger.info(f"  Sparsity type: {args.sparsity_type}")
         logger.info(f"  Use variant: {args.use_variant}")
@@ -188,6 +195,7 @@ def main():
             device=device,
             calib_dataset_path=args.calib_dataset,
             nsamples=args.nsamples,
+            max_calib_seqlen=args.max_calib_seqlen,
             sparsity_ratio=args.sparsity_ratio,
             prune_n=prune_n,
             prune_m=prune_m,

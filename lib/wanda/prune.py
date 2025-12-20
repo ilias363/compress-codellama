@@ -65,7 +65,7 @@ def check_sparsity(model):
     return float(count) / total_params
 
 
-def prepare_calibration_input(model, dataloader, device, nsamples=128):
+def prepare_calibration_input(model, dataloader, device, nsamples=128, max_calib_seqlen=128):
     """
     Prepare calibration inputs by passing data through the model.
 
@@ -74,6 +74,7 @@ def prepare_calibration_input(model, dataloader, device, nsamples=128):
         dataloader: Calibration data loader
         device: Device to use
         nsamples: Number of calibration samples
+        max_calib_seqlen: Maximum sequence length for calibration
 
     Returns:
         tuple: (inps, outs, attention_mask, position_ids)
@@ -86,9 +87,8 @@ def prepare_calibration_input(model, dataloader, device, nsamples=128):
     if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
         device = model.hf_device_map["model.embed_tokens"]
 
-    # Use a small sequence length for calibration to avoid OOM
-    # 128 is commonly used in pruning papers and is sufficient for calibration
-    calib_seqlen = min(model.seqlen, 128)
+    # Use a smaller sequence length for calibration to avoid OOM
+    calib_seqlen = min(model.seqlen, max_calib_seqlen)
 
     dtype = next(iter(model.parameters())).dtype
     # Allocate on CPU first to avoid GPU OOM during allocation
@@ -157,6 +157,7 @@ def prune_wanda(
     prune_n=0,
     prune_m=0,
     use_variant=False,
+    max_calib_seqlen=128,
 ):
     """
     Apply Wanda pruning to a model.
@@ -174,20 +175,20 @@ def prune_wanda(
         prune_n: N for N:M structured sparsity (0 for unstructured)
         prune_m: M for N:M structured sparsity
         use_variant: Whether to use Wanda variant with adaptive threshold
+        max_calib_seqlen: Maximum sequence length for calibration (reduces memory)
     """
     use_cache = model.config.use_cache
     model.config.use_cache = False
 
     print("Loading calibration data...")
-    # Use a small sequence length for calibration to avoid OOM
-    # 128 is commonly used in pruning papers and is sufficient for calibration
-    calib_seqlen = min(model.seqlen, 128)
+    # Use a smaller sequence length for calibration to avoid OOM
+    calib_seqlen = min(model.seqlen, max_calib_seqlen)
     dataloader = load_calibration_dataset(calib_dataset_path, nsamples, calib_seqlen, tokenizer)
     print("Dataset loading complete")
 
     with torch.no_grad():
         inps, outs, attention_mask, position_ids = prepare_calibration_input(
-            model, dataloader, device, nsamples
+            model, dataloader, device, nsamples, max_calib_seqlen
         )
 
     layers = model.model.layers
@@ -227,9 +228,7 @@ def prune_wanda(
         for j in range(nsamples):
             with torch.no_grad():
                 outs[j] = layer(
-                    inps[j].unsqueeze(0), 
-                    attention_mask=attention_mask, 
-                    position_ids=position_ids
+                    inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids
                 )[0]
 
         for h in handles:
