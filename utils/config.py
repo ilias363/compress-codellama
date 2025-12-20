@@ -45,7 +45,16 @@ def get_default_config() -> Dict[str, Any]:
             "save_stats": True,
             "format": "json",
         },
-        "pruning": {},
+        "pruning": {
+            "method": "wanda",
+            "sparsity_ratio": 0.35,
+            "sparsity_type": "unstructured",
+            "nsamples": 128,
+            "use_variant": False,
+            "calib_dataset": "./datasets/calib_512.json",
+            "output_dir": "./outputs/pruned",
+            "save_stats": True,
+        },
         "qlora": {},
         "quantization": {},
     }
