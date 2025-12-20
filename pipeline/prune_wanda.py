@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-def load_model(model_name, cache_dir="llm_weights"):
+def load_model(model_name: str, cache_dir: Path):
     """
     Load CodeLlama model.
 
@@ -61,7 +61,10 @@ def main():
         '--model', type=str, default=MODEL_CONFIG['name'], help='CodeLlama model name or path'
     )
     parser.add_argument(
-        '--cache_dir', type=str, default='llm_weights', help='Cache directory for model weights'
+        '--cache_dir',
+        type=str,
+        default='./outputs/cached_llm_weights',
+        help='Cache directory for model weights',
     )
 
     parser.add_argument(
@@ -201,32 +204,14 @@ def main():
     logger.info(f"Final model sparsity: {final_sparsity:.4f}")
     logger.info("=" * 70)
 
-    os.makedirs(args.output_dir, exist_ok=True)
-    logger.info(f"Saving pruned model to: {args.output_dir}")
+    model_path = Path(args.output_dir) / "pruned_model"
+    os.makedirs(model_path, exist_ok=True)
+    logger.info(f"Saving pruned model to: {model_path}")
 
-    model.save_pretrained(args.output_dir)
-    tokenizer.save_pretrained(args.output_dir)
+    model.save_pretrained(model_path)
+    tokenizer.save_pretrained(model_path)
 
     if args.save_stats:
-        stats_path = os.path.join(args.output_dir, "pruning_info.txt")
-        logger.info(f"Saving pruning statistics to: {stats_path}")
-
-        with open(stats_path, "w") as f:
-            f.write("Wanda Pruning Statistics\n")
-            f.write("=" * 50 + "\n")
-            f.write(f"Model: {args.model}\n")
-            f.write(f"Pruning method: Wanda\n")
-            f.write(f"Source: https://github.com/locuslab/wanda\n")
-            f.write(f"Sparsity type: {args.sparsity_type}\n")
-            f.write(f"Target sparsity: {args.sparsity_ratio:.4f}\n")
-            f.write(f"Actual sparsity: {final_sparsity:.4f}\n")
-            f.write(f"Calibration samples: {args.nsamples}\n")
-            f.write(f"Calibration dataset: {args.calib_dataset}\n")
-            f.write(f"Use variant: {args.use_variant}\n")
-            f.write(f"Random seed: {args.seed}\n")
-            f.write("=" * 50 + "\n")
-
-        # Save JSON statistics
         json_stats_path = os.path.join(args.output_dir, "pruning_stats.json")
         logger.info(f"Saving pruning statistics (JSON) to: {json_stats_path}")
 
@@ -248,7 +233,7 @@ def main():
 
     logger.info("=" * 70)
     logger.info("Wanda pruning pipeline completed successfully!")
-    logger.info(f"Pruned model saved to: {args.output_dir}")
+    logger.info(f"Pruned model saved to: {model_path}")
     logger.info("=" * 70)
 
 
