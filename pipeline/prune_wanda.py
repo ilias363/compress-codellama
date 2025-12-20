@@ -70,52 +70,52 @@ def main():
     parser.add_argument(
         '--calib_dataset',
         type=str,
-        default=PRUNING_CONFIG.get('calib_dataset', './datasets/calib_512.json'),
+        default=PRUNING_CONFIG['calib_dataset'],
         help='Path to calibration dataset JSON file',
     )
     parser.add_argument(
         '--nsamples',
         type=int,
-        default=PRUNING_CONFIG.get('nsamples', 128),
+        default=PRUNING_CONFIG['nsamples'],
         help='Number of calibration samples',
     )
     parser.add_argument(
         '--max_calib_seqlen',
         type=int,
-        default=PRUNING_CONFIG.get('max_calib_seqlen', 128),
+        default=PRUNING_CONFIG['max_calib_seqlen'],
         help='Maximum sequence length for calibration (reduces memory usage)',
     )
 
     parser.add_argument(
         '--sparsity_ratio',
         type=float,
-        default=PRUNING_CONFIG.get('sparsity_ratio', 0.5),
+        default=PRUNING_CONFIG['sparsity_ratio'],
         help='Target sparsity ratio 0-1',
     )
     parser.add_argument(
         '--sparsity_type',
         type=str,
-        default=PRUNING_CONFIG.get('sparsity_type', 'unstructured'),
+        default=PRUNING_CONFIG['sparsity_type'],
         choices=['unstructured', '4:8', '2:4'],
         help='Type of sparsity',
     )
     parser.add_argument(
         '--use_variant',
         action='store_true',
-        default=PRUNING_CONFIG.get('use_variant', False),
+        default=PRUNING_CONFIG['use_variant'],
         help='Use Wanda variant with adaptive threshold',
     )
 
     parser.add_argument(
         '--output_dir',
         type=str,
-        default=PRUNING_CONFIG.get('output_dir', './outputs/pruned'),
+        default=PRUNING_CONFIG['output_dir'],
         help='Directory to save pruned model',
     )
     parser.add_argument(
         '--save_stats',
         action='store_true',
-        default=PRUNING_CONFIG.get('save_stats', True),
+        default=PRUNING_CONFIG['save_stats'],
         help='Save pruning statistics',
     )
 
