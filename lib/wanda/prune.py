@@ -65,7 +65,7 @@ def check_sparsity(model):
     return float(count) / total_params
 
 
-def prepare_calibration_input(model, dataloader, device):
+def prepare_calibration_input(model, dataloader, device, nsamples=128):
     """
     Prepare calibration inputs by passing data through the model.
 
@@ -73,6 +73,7 @@ def prepare_calibration_input(model, dataloader, device):
         model: The model
         dataloader: Calibration data loader
         device: Device to use
+        nsamples: Number of calibration samples
 
     Returns:
         tuple: (inps, outs, attention_mask, position_ids)
@@ -85,8 +86,13 @@ def prepare_calibration_input(model, dataloader, device):
     if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
         device = model.hf_device_map["model.embed_tokens"]
 
+    # Use a small sequence length for calibration to avoid OOM
+    # 128 is commonly used in pruning papers and is sufficient for calibration
+    calib_seqlen = min(model.seqlen, 128)
+
     dtype = next(iter(model.parameters())).dtype
-    inps = torch.zeros((128, model.seqlen, model.config.hidden_size), dtype=dtype, device=device)
+    # Allocate on CPU first to avoid GPU OOM during allocation
+    inps = torch.zeros((nsamples, calib_seqlen, model.config.hidden_size), dtype=dtype, device='cpu')
     inps.requires_grad = False
     cache = {'i': 0, 'attention_mask': None, "position_ids": None}
 
@@ -96,10 +102,11 @@ def prepare_calibration_input(model, dataloader, device):
             self.module = module
 
         def forward(self, inp, **kwargs):
-            inps[cache['i']] = inp
+            # Copy to CPU to save GPU memory
+            inps[cache['i']] = inp.cpu()
             cache['i'] += 1
-            cache['attention_mask'] = kwargs['attention_mask']
-            cache['position_ids'] = kwargs['position_ids']
+            cache['attention_mask'] = kwargs.get('attention_mask')
+            cache['position_ids'] = kwargs.get('position_ids')
             raise ValueError
 
     layers[0] = Catcher(layers[0])
@@ -172,26 +179,36 @@ def prune_wanda(
     model.config.use_cache = False
 
     print("Loading calibration data...")
-    dataloader = load_calibration_dataset(calib_dataset_path, nsamples, model.seqlen, tokenizer)
+    # Use a small sequence length for calibration to avoid OOM
+    # 128 is commonly used in pruning papers and is sufficient for calibration
+    calib_seqlen = min(model.seqlen, 128)
+    dataloader = load_calibration_dataset(calib_dataset_path, nsamples, calib_seqlen, tokenizer)
     print("Dataset loading complete")
 
     with torch.no_grad():
-        inps, outs, attention_mask, position_ids = prepare_calibration_input(model, dataloader, device)
+        inps, outs, attention_mask, position_ids = prepare_calibration_input(
+            model, dataloader, device, nsamples
+        )
 
     layers = model.model.layers
     for i in range(len(layers)):
         layer = layers[i]
         subset = find_layers(layer)
 
-        # Handle multi-GPU case
+        # Handle multi-GPU case - determine target device for this layer
         if hasattr(model, 'hf_device_map') and f"model.layers.{i}" in model.hf_device_map:
             dev = model.hf_device_map[f"model.layers.{i}"]
-            inps, outs, attention_mask, position_ids = (
-                inps.to(dev),
-                outs.to(dev),
-                attention_mask.to(dev),
-                position_ids.to(dev),
-            )
+        else:
+            dev = device
+
+        # Move tensors to target device if needed
+        if inps.device != dev:
+            inps = inps.to(dev)
+            outs = outs.to(dev)
+        if attention_mask is not None and attention_mask.device != dev:
+            attention_mask = attention_mask.to(dev)
+        if position_ids is not None and position_ids.device != dev:
+            position_ids = position_ids.to(dev)
 
         wrapped_layers = {}
         for name in subset:
@@ -210,7 +227,9 @@ def prune_wanda(
         for j in range(nsamples):
             with torch.no_grad():
                 outs[j] = layer(
-                    inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids
+                    inps[j].unsqueeze(0), 
+                    attention_mask=attention_mask, 
+                    position_ids=position_ids
                 )[0]
 
         for h in handles:
