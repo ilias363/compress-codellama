@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.config import SEED, MODEL_CONFIG, PRUNING_CONFIG, setup_logging
 from utils.model_utils import load_model, load_tokenizer
-from utils.io_utils import save_statistics
+from utils.io_utils import save_json
 from lib.wanda.prune import prune_wanda, check_sparsity
 
 
@@ -200,7 +200,7 @@ def main():
             "output_dir": args.output_dir,
         }
 
-        save_statistics(pruning_stats, json_stats_path)
+        save_json(pruning_stats, json_stats_path)
 
     logger.info("=" * 70)
     logger.info("Wanda pruning pipeline completed successfully!")

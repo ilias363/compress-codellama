@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils.config import SEED, DATASET_CONFIG, MODEL_CONFIG, setup_logging, get_logger
 from utils.data_utils import DatasetStats, SOURCE_LOADERS, create_calibration_subset, create_awq_calibration
 from utils.model_utils import load_tokenizer
-from utils.io_utils import save_dataset, save_statistics
+from utils.io_utils import save_dataset, save_json
 
 
 logger = logging.getLogger(__name__)
@@ -189,7 +189,7 @@ def main():
     save_dataset(awq_calib_samples, output_dir / args.awq_calib_file, args.format)
 
     if args.save_stats:
-        save_statistics(stats.to_dict(), output_dir / "dataset_stats.json")
+        save_json(stats.to_dict(), output_dir / "dataset_stats.json")
         print(stats.summary())
 
     logger.info("=" * 60)

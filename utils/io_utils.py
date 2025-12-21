@@ -70,9 +70,3 @@ def load_dataset_file(input_path: Union[str, Path]) -> List[Dict]:
         return load_jsonl(input_path)
     else:
         return load_json(input_path)
-
-
-def save_statistics(stats_dict: Dict, output_path: Union[str, Path]) -> None:
-    """Save dataset statistics to file."""
-    save_json(stats_dict, output_path)
-    logger.info(f"Saved statistics to {output_path}")
