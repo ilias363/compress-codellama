@@ -107,3 +107,18 @@ def count_parameters(model: nn.Module, trainable_only: bool = False) -> int:
     if trainable_only:
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
     return sum(p.numel() for p in model.parameters())
+
+
+def check_sparsity(model: nn.Module) -> float:
+    """Calculate the overall sparsity of the model (percentage of zero weights)."""
+    total_zeros = 0
+    total_params = 0
+
+    for name, param in model.named_parameters():
+        if 'weight' in name and param.dim() >= 2:
+            zeros = (param == 0).sum().item()
+            total = param.numel()
+            total_zeros += zeros
+            total_params += total
+
+    return total_zeros / total_params if total_params > 0 else 0.0
