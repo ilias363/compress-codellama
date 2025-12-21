@@ -3,6 +3,7 @@ import os
 import logging
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 import torch
@@ -72,6 +73,7 @@ def main():
         "seqlen": args.seqlen,
         "batch_size": args.batch_size,
         "seed": args.seed,
+        "timestamp": datetime.now().isoformat(),
     }
 
     logger.info("=" * 70)

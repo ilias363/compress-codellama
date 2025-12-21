@@ -9,6 +9,8 @@ import argparse
 import logging
 import os
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -17,7 +19,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.config import SEED, MODEL_CONFIG, PRUNING_CONFIG, setup_logging
-from utils.model_utils import load_model, load_tokenizer
+from utils.model_utils import load_model, load_tokenizer, get_model_size_mb, count_parameters
 from utils.io_utils import save_json
 from lib.wanda.prune import prune_wanda, check_sparsity
 
@@ -152,6 +154,8 @@ def main():
         logger.info(f"  Use variant: {args.use_variant}")
         logger.info("=" * 70)
 
+        prune_start_time = time.time()
+
         prune_wanda(
             model=model,
             tokenizer=tokenizer,
@@ -165,14 +169,25 @@ def main():
             use_variant=args.use_variant,
         )
 
+        pruning_time = time.time() - prune_start_time
+
         logger.info("Pruning complete!")
+        logger.info(f"Pruning time: {pruning_time:.2f}s")
     else:
         logger.warning("Sparsity ratio is 0, skipping pruning")
+        pruning_time = 0.0
 
     logger.info("=" * 70)
     logger.info("Checking final sparsity...")
     final_sparsity = check_sparsity(model)
-    logger.info(f"Final model sparsity: {final_sparsity:.4f}")
+    model_size_mb = get_model_size_mb(model)
+    total_params = count_parameters(model)
+    non_zero_params = int(total_params * (1 - final_sparsity))
+
+    logger.info(f"Final model sparsity: {final_sparsity:.4f} ({final_sparsity*100:.2f}%)")
+    logger.info(f"Model size: {model_size_mb:.2f} MB")
+    logger.info(f"Total parameters: {total_params:,}")
+    logger.info(f"Non-zero parameters: {non_zero_params:,}")
     logger.info("=" * 70)
 
     model_path = Path(args.output_dir) / "pruned_model"
@@ -188,16 +203,24 @@ def main():
 
         pruning_stats = {
             "model": args.model,
+            "model_size_mb": round(model_size_mb, 2),
+            "total_parameters": total_params,
+            "non_zero_parameters": non_zero_params,
             "pruning_method": "wanda",
-            "source": "https://github.com/locuslab/wanda",
             "sparsity_type": args.sparsity_type,
             "target_sparsity": float(args.sparsity_ratio),
+            "target_sparsity_percent": round(args.sparsity_ratio * 100, 2),
             "actual_sparsity": float(final_sparsity),
-            "calibration_samples": args.nsamples,
-            "calibration_dataset": args.calib_dataset,
+            "actual_sparsity_percent": round(final_sparsity * 100, 2),
             "use_variant": args.use_variant,
-            "random_seed": args.seed,
-            "output_dir": args.output_dir,
+            "calibration_dataset": args.calib_dataset,
+            "calibration_samples": args.nsamples,
+            "max_calibration_seqlen": args.max_calib_seqlen,
+            "prune_n": prune_n,
+            "prune_m": prune_m,
+            "pruning_time_seconds": round(pruning_time, 2),
+            "seed": args.seed,
+            "timestamp": datetime.now().isoformat(),
         }
 
         save_json(pruning_stats, json_stats_path)
