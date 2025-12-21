@@ -18,7 +18,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.config import SEED, MODEL_CONFIG, PATHS_CONFIG, DATASET_CONFIG, PRUNING_CONFIG, setup_logging, ensure_paths_exist
+from utils.config_utils import SEED, MODEL_CONFIG, PATHS_CONFIG, DATASET_CONFIG, PRUNING_CONFIG, setup_logging, ensure_paths_exist
 from utils.model_utils import load_model, load_tokenizer, get_model_size_mb, count_parameters
 from utils.io_utils import save_json
 from lib.wanda.prune import prune_wanda, check_sparsity

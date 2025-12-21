@@ -7,7 +7,14 @@ import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.config import PATHS_CONFIG, SEED, DATASET_CONFIG, MODEL_CONFIG, setup_logging, ensure_paths_exist
+from utils.config_utils import (
+    PATHS_CONFIG,
+    SEED,
+    DATASET_CONFIG,
+    MODEL_CONFIG,
+    setup_logging,
+    ensure_paths_exist,
+)
 from utils.data_utils import DatasetStats, SOURCE_LOADERS, create_calibration_subset, create_awq_calibration
 from utils.model_utils import load_tokenizer
 from utils.io_utils import save_dataset, save_json

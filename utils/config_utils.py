@@ -147,12 +147,12 @@ def ensure_paths_exist() -> Dict[str, Path]:
     """
     paths = {}
     for key in ["models_dir", "cache_dir", "stats_dir", "logs_dir"]:
-        path = PATHS_CONFIG.get(key, f"./outputs/{key}")
+        path = Path(PATHS_CONFIG.get(key, f"./outputs/{key}"))
         path.mkdir(parents=True, exist_ok=True)
         paths[key] = path
 
     # Also ensure datasets dir exists
-    datasets_path = PATHS_CONFIG["datasets_dir"]
+    datasets_path = Path(PATHS_CONFIG["datasets_dir"])
     datasets_path.mkdir(parents=True, exist_ok=True)
     paths["datasets_dir"] = datasets_path
 

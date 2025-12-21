@@ -9,7 +9,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.config import PATHS_CONFIG, SEED, MODEL_CONFIG, EVALUATION_CONFIG, setup_logging, ensure_paths_exist
+from utils.config_utils import PATHS_CONFIG, SEED, MODEL_CONFIG, EVALUATION_CONFIG, setup_logging, ensure_paths_exist
 from utils.model_utils import load_model, load_tokenizer, check_sparsity, get_model_size_mb, count_parameters
 from utils.eval_utils import get_wikitext2, evaluate_perplexity
 from utils.io_utils import save_json
