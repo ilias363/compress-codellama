@@ -195,7 +195,7 @@ def main():
     awq_calib_samples = create_awq_calibration(calib_samples, args.awq_calib_samples)
     save_dataset(awq_calib_samples, output_dir / args.awq_calib_file, args.format)
 
-    stats_path = Path(args.stats_dir) / f"dataset_stats{int(time.time())}.json"
+    stats_path = Path(args.stats_dir) / f"dataset_stats_{int(time.time())}.json"
     save_json(stats.to_dict(), stats_path)
 
     logger.info("=" * 60)
