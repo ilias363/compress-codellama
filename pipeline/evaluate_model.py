@@ -1,5 +1,4 @@
 import argparse
-import os
 import logging
 import sys
 import time
@@ -10,7 +9,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.config import SEED, MODEL_CONFIG, setup_logging
+from utils.config import PATHS_CONFIG, SEED, MODEL_CONFIG, EVALUATION_CONFIG, setup_logging, ensure_paths_exist
 from utils.model_utils import load_model, load_tokenizer, check_sparsity, get_model_size_mb, count_parameters
 from utils.eval_utils import get_wikitext2, evaluate_perplexity
 from utils.io_utils import save_json
@@ -33,13 +32,26 @@ def main():
     parser.add_argument(
         '--cache_dir',
         type=str,
-        default='./outputs/cached_llm_weights',
+        default=f"{PATHS_CONFIG["cache_dir"]}/llm_weights",
         help='Cache directory for model weights',
     )
-    parser.add_argument('--seqlen', type=int, default=2048, help='Sequence length for evaluation')
-    parser.add_argument('--batch_size', type=int, default=1, help='Batch size for evaluation')
     parser.add_argument(
-        '--output_file', type=str, default=None, help='Path to save evaluation results (JSON)'
+        '--seqlen',
+        type=int,
+        default=EVALUATION_CONFIG['seqlen'],
+        help='Sequence length for evaluation'
+    )
+    parser.add_argument(
+        '--batch_size',
+        type=int,
+        default=EVALUATION_CONFIG['batch_size'],
+        help='Batch size for evaluation'
+    )
+    parser.add_argument(
+        '--output_file',
+        type=str,
+        default=f"{PATHS_CONFIG['stats_dir']}/eval_results_{int(time.time())}.json",
+        help='Path to save evaluation results (JSON)'
     )
     parser.add_argument('--seed', type=int, default=SEED, help='Random seed')
     parser.add_argument("--verbose", "-v", action="count", default=0, help="Increase logging verbosity")
@@ -48,6 +60,8 @@ def main():
     args = parser.parse_args()
 
     setup_logging(verbose=args.verbose, quiet=args.quiet)
+
+    ensure_paths_exist()
 
     torch.manual_seed(args.seed)
 
@@ -105,16 +119,9 @@ def main():
     logger.info(f"Evaluation time: {eval_time:.2f}s")
     logger.info("=" * 70)
 
-    if args.output_file:
-        output_path = args.output_file
-    else:
-        # Default: save next to model
-        if os.path.isdir(args.model):
-            output_path = os.path.join(args.model, "eval_results.json")
-        else:
-            output_path = "./eval_results.json"
-
-    save_json(results, output_path)
+    output_file = Path(args.output_file)
+    save_json(results, output_file)
+    logger.info(f"Evaluation results saved to: {output_file}")
 
     return results
 

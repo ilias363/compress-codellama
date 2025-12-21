@@ -3,10 +3,11 @@ import random
 import logging
 from pathlib import Path
 import sys
+import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.config import SEED, DATASET_CONFIG, MODEL_CONFIG, setup_logging, get_logger
+from utils.config import PATHS_CONFIG, SEED, DATASET_CONFIG, MODEL_CONFIG, setup_logging, ensure_paths_exist
 from utils.data_utils import DatasetStats, SOURCE_LOADERS, create_calibration_subset, create_awq_calibration
 from utils.model_utils import load_tokenizer
 from utils.io_utils import save_dataset, save_json
@@ -35,7 +36,10 @@ def main():
     )
 
     parser.add_argument(
-        "--output_dir", type=str, default=DATASET_CONFIG['output_dir'], help="Output directory"
+        "--output_dir", type=str, default=PATHS_CONFIG['datasets_dir'], help="Output directory for datasets"
+    )
+    parser.add_argument(
+        "--stats_dir", type=str, default=PATHS_CONFIG['stats_dir'], help="Output directory for statistics"
     )
     parser.add_argument(
         "--train_file", type=str, default=DATASET_CONFIG['train_file'], help="Training data filename"
@@ -104,12 +108,6 @@ def main():
     parser.add_argument("--seed", type=int, default=SEED, help="Random seed for reproducibility")
 
     parser.add_argument(
-        "--save_stats",
-        action="store_true",
-        default=DATASET_CONFIG['save_stats'],
-        help="Save dataset statistics",
-    )
-    parser.add_argument(
         "--verbose",
         "-v",
         action="count",
@@ -126,6 +124,8 @@ def main():
     args = parser.parse_args()
 
     setup_logging(verbose=args.verbose, quiet=args.quiet)
+
+    ensure_paths_exist()
 
     random.seed(args.seed)
 
@@ -188,9 +188,8 @@ def main():
     awq_calib_samples = create_awq_calibration(calib_samples, args.awq_calib_samples)
     save_dataset(awq_calib_samples, output_dir / args.awq_calib_file, args.format)
 
-    if args.save_stats:
-        save_json(stats.to_dict(), output_dir / "dataset_stats.json")
-        print(stats.summary())
+    stats_path = Path(args.stats_dir) / f"dataset_stats{int(time.time())}.json"
+    save_json(stats.to_dict(), stats_path)
 
     logger.info("=" * 60)
     logger.info("Dataset preparation complete!")
@@ -200,8 +199,6 @@ def main():
     logger.info(
         f"  AWQ calibration:    {output_dir / args.awq_calib_file} ({len(awq_calib_samples)} samples)"
     )
-    if args.save_stats:
-        logger.info(f"  Statistics:         {output_dir / 'dataset_stats.json'}")
 
 
 if __name__ == "__main__":

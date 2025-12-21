@@ -18,7 +18,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.config import SEED, MODEL_CONFIG, PRUNING_CONFIG, setup_logging
+from utils.config import SEED, MODEL_CONFIG, PATHS_CONFIG, DATASET_CONFIG, PRUNING_CONFIG, setup_logging, ensure_paths_exist
 from utils.model_utils import load_model, load_tokenizer, get_model_size_mb, count_parameters
 from utils.io_utils import save_json
 from lib.wanda.prune import prune_wanda, check_sparsity
@@ -39,14 +39,14 @@ def main():
     parser.add_argument(
         '--cache_dir',
         type=str,
-        default='./outputs/cached_llm_weights',
+        default=f"{PATHS_CONFIG["cache_dir"]}/llm_weights",
         help='Cache directory for model weights',
     )
 
     parser.add_argument(
         '--calib_dataset',
         type=str,
-        default=PRUNING_CONFIG['calib_dataset'],
+        default=f"{PATHS_CONFIG['datasets_dir']}/{DATASET_CONFIG['calib_file']}",
         help='Path to calibration dataset JSON file',
     )
     parser.add_argument(
@@ -85,14 +85,14 @@ def main():
     parser.add_argument(
         '--output_dir',
         type=str,
-        default=PRUNING_CONFIG['output_dir'],
+        default=f"{PATHS_CONFIG['models_dir']}/pruned",
         help='Directory to save pruned model',
     )
     parser.add_argument(
-        '--save_stats',
-        action='store_true',
-        default=PRUNING_CONFIG['save_stats'],
-        help='Save pruning statistics',
+        '--stats_dir',
+        type=str,
+        default=PATHS_CONFIG['stats_dir'],
+        help='Directory to save pruning statistics',
     )
 
     parser.add_argument('--seed', type=int, default=SEED, help=f'Random seed')
@@ -114,6 +114,8 @@ def main():
     args = parser.parse_args()
 
     setup_logging(verbose=args.verbose, quiet=args.quiet)
+
+    ensure_paths_exist()
 
     logger.info(f"Setting random seed: {args.seed}")
     np.random.seed(args.seed)
@@ -190,40 +192,40 @@ def main():
     logger.info(f"Non-zero parameters: {non_zero_params:,}")
     logger.info("=" * 70)
 
-    model_path = Path(args.output_dir) / "pruned_model"
+    model_path = Path(args.output_dir)
     os.makedirs(model_path, exist_ok=True)
     logger.info(f"Saving pruned model to: {model_path}")
 
     model.save_pretrained(model_path)
     tokenizer.save_pretrained(model_path)
 
-    if args.save_stats:
-        json_stats_path = os.path.join(args.output_dir, "pruning_stats.json")
-        logger.info(f"Saving pruning statistics (JSON) to: {json_stats_path}")
+    json_stats_path = Path(args.stats_dir) / f"pruning_stats_{int(time.time())}.json"
+    logger.info(f"Saving pruning statistics (JSON) to: {json_stats_path}")
 
-        pruning_stats = {
-            "model": args.model,
-            "model_size_mb": round(model_size_mb, 2),
-            "total_parameters": total_params,
-            "non_zero_parameters": non_zero_params,
-            "pruning_method": "wanda",
-            "sparsity_type": args.sparsity_type,
-            "target_sparsity": float(args.sparsity_ratio),
-            "target_sparsity_percent": round(args.sparsity_ratio * 100, 2),
-            "actual_sparsity": float(final_sparsity),
-            "actual_sparsity_percent": round(final_sparsity * 100, 2),
-            "use_variant": args.use_variant,
-            "calibration_dataset": args.calib_dataset,
-            "calibration_samples": args.nsamples,
-            "max_calibration_seqlen": args.max_calib_seqlen,
-            "prune_n": prune_n,
-            "prune_m": prune_m,
-            "pruning_time_seconds": round(pruning_time, 2),
-            "seed": args.seed,
-            "timestamp": datetime.now().isoformat(),
-        }
+    pruning_stats = {
+        "model": args.model,
+        "model_size_mb": round(model_size_mb, 2),
+        "total_parameters": total_params,
+        "non_zero_parameters": non_zero_params,
+        "pruning_method": "wanda",
+        "sparsity_type": args.sparsity_type,
+        "target_sparsity": float(args.sparsity_ratio),
+        "target_sparsity_percent": round(args.sparsity_ratio * 100, 2),
+        "actual_sparsity": float(final_sparsity),
+        "actual_sparsity_percent": round(final_sparsity * 100, 2),
+        "use_variant": args.use_variant,
+        "calibration_dataset": args.calib_dataset,
+        "calibration_samples": args.nsamples,
+        "max_calibration_seqlen": args.max_calib_seqlen,
+        "prune_n": prune_n,
+        "prune_m": prune_m,
+        "pruning_time_seconds": round(pruning_time, 2),
+        "seed": args.seed,
+        "output_model_path": str(model_path),
+        "timestamp": datetime.now().isoformat(),
+    }
 
-        save_json(pruning_stats, json_stats_path)
+    save_json(pruning_stats, json_stats_path)
 
     logger.info("=" * 70)
     logger.info("Wanda pruning pipeline completed successfully!")

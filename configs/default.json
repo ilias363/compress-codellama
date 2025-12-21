@@ -1,13 +1,19 @@
 {
   "seed": 363,
   "model": {
-    "name": "codellama/CodeLlama-7b-Instruct-hf",
-    "output_dir": "./outputs"
+    "name": "codellama/CodeLlama-7b-Instruct-hf"
+  },
+  "paths": {
+    "base_output_dir": "./outputs",
+    "datasets_dir": "./datasets",
+    "models_dir": "./outputs/models",
+    "cache_dir": "./outputs/cache",
+    "stats_dir": "./outputs/stats",
+    "logs_dir": "./outputs/logs"
   },
   "dataset_prep": {
     "sources": ["magicoder", "wizardcoder", "code_alpaca"],
     "samples_per_source": [10000, 5000, 5000],
-    "output_dir": "./datasets",
     "train_file": "train.json",
     "calib_file": "calib_512.json",
     "awq_calib_file": "calib_awq_128.json",
@@ -17,7 +23,6 @@
     "awq_calib_samples": 128,
     "languages": ["python", "javascript", "java", "cpp", "typescript"],
     "stratified_calib": true,
-    "save_stats": true,
     "format": "json"
   },
   "pruning": {
@@ -26,10 +31,11 @@
     "sparsity_type": "unstructured",
     "nsamples": 512,
     "max_calib_seqlen": 512,
-    "use_variant": false,
-    "calib_dataset": "./datasets/calib_512.json",
-    "output_dir": "./outputs/pruned",
-    "save_stats": true
+    "use_variant": false
+  },
+  "evaluation": {
+    "seqlen": 2048,
+    "batch_size": 1
   },
   "qlora": {},
   "quantization": {}

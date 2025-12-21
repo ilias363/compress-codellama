@@ -72,11 +72,18 @@ def get_default_config() -> Dict[str, Any]:
     """Return hardcoded default configuration."""
     return {
         "seed": 363,
-        "model": {"name": "codellama/CodeLlama-7b-Instruct-hf", "output_dir": "./outputs"},
+        "model": {"name": "codellama/CodeLlama-7b-Instruct-hf"},
+        "paths": {
+            "base_output_dir": "./outputs",
+            "datasets_dir": "./datasets",
+            "models_dir": "./outputs/models",
+            "cache_dir": "./outputs/cache",
+            "stats_dir": "./outputs/stats",
+            "logs_dir": "./outputs/logs",
+        },
         "dataset_prep": {
             "sources": ["magicoder", "wizardcoder", "code_alpaca"],
             "samples_per_source": [10000, 5000, 5000],
-            "output_dir": "./datasets",
             "train_file": "train.json",
             "calib_file": "calib_512.json",
             "awq_calib_file": "calib_awq_128.json",
@@ -86,7 +93,6 @@ def get_default_config() -> Dict[str, Any]:
             "awq_calib_samples": 128,
             "languages": ["python", "javascript", "java", "cpp", "typescript"],
             "stratified_calib": True,
-            "save_stats": True,
             "format": "json",
         },
         "pruning": {
@@ -96,9 +102,10 @@ def get_default_config() -> Dict[str, Any]:
             "nsamples": 512,
             "max_calib_seqlen": 512,
             "use_variant": False,
-            "calib_dataset": "./datasets/calib_512.json",
-            "output_dir": "./outputs/pruned",
-            "save_stats": True,
+        },
+        "evaluation": {
+            "seqlen": 2048,
+            "batch_size": 1,
         },
         "qlora": {},
         "quantization": {},
@@ -109,9 +116,11 @@ def get_default_config() -> Dict[str, Any]:
 _FULL_CONFIG = load_config()
 
 SEED: int = _FULL_CONFIG.get("seed", 363)
+PATHS_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("paths", get_default_config()["paths"])
 DATASET_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("dataset_prep", get_default_config()["dataset_prep"])
 MODEL_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("model", get_default_config()["model"])
 PRUNING_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("pruning", get_default_config()["pruning"])
+EVALUATION_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("evaluation", get_default_config()["evaluation"])
 QLORA_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("qlora", get_default_config()["qlora"])
 QUANTIZATION_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("quantization", get_default_config()["quantization"])
 
@@ -119,13 +128,35 @@ QUANTIZATION_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("quantization", get_defau
 def get_config_section(section: str) -> Dict[str, Any]:
     """Get a specific section of the configuration."""
     sections = {
+        "paths": PATHS_CONFIG,
         "dataset_prep": DATASET_CONFIG,
         "model": MODEL_CONFIG,
         "pruning": PRUNING_CONFIG,
+        "evaluation": EVALUATION_CONFIG,
         "qlora": QLORA_CONFIG,
         "quantization": QUANTIZATION_CONFIG,
     }
     return sections.get(section, {})
+
+
+def ensure_paths_exist() -> Dict[str, Path]:
+    """Create all output directories if they don't exist.
+
+    Returns:
+        Dictionary mapping path keys to their Path objects
+    """
+    paths = {}
+    for key in ["models_dir", "cache_dir", "stats_dir", "logs_dir"]:
+        path = PATHS_CONFIG.get(key, f"./outputs/{key}")
+        path.mkdir(parents=True, exist_ok=True)
+        paths[key] = path
+
+    # Also ensure datasets dir exists
+    datasets_path = PATHS_CONFIG["datasets_dir"]
+    datasets_path.mkdir(parents=True, exist_ok=True)
+    paths["datasets_dir"] = datasets_path
+
+    return paths
 
 
 def reload_config(config_path: Optional[Path] = None) -> None:
@@ -135,12 +166,14 @@ def reload_config(config_path: Optional[Path] = None) -> None:
     Args:
         config_path: Path to config file. Defaults to configs/default.json
     """
-    global _FULL_CONFIG, SEED, DATASET_CONFIG, MODEL_CONFIG, PRUNING_CONFIG, QLORA_CONFIG, QUANTIZATION_CONFIG
+    global _FULL_CONFIG, SEED, PATHS_CONFIG, DATASET_CONFIG, MODEL_CONFIG, PRUNING_CONFIG, EVALUATION_CONFIG, QLORA_CONFIG, QUANTIZATION_CONFIG
 
     _FULL_CONFIG = load_config(config_path)
-    SEED = _FULL_CONFIG.get("seed", 42)
-    DATASET_CONFIG = _FULL_CONFIG.get("dataset_prep", get_default_config()["dataset_prep"])
-    MODEL_CONFIG = _FULL_CONFIG.get("model", get_default_config()["model"])
-    PRUNING_CONFIG = _FULL_CONFIG.get("pruning", get_default_config()["pruning"])
-    QLORA_CONFIG = _FULL_CONFIG.get("qlora", get_default_config()["qlora"])
-    QUANTIZATION_CONFIG = _FULL_CONFIG.get("quantization", get_default_config()["quantization"])
+    SEED = _FULL_CONFIG["seed"]
+    PATHS_CONFIG = _FULL_CONFIG["paths"]
+    DATASET_CONFIG = _FULL_CONFIG["dataset_prep"]
+    MODEL_CONFIG = _FULL_CONFIG["model"]
+    PRUNING_CONFIG = _FULL_CONFIG["pruning"]
+    EVALUATION_CONFIG = _FULL_CONFIG["evaluation"]
+    QLORA_CONFIG = _FULL_CONFIG["qlora"]
+    QUANTIZATION_CONFIG = _FULL_CONFIG["quantization"]
