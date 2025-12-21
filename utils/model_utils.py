@@ -34,8 +34,27 @@ def load_model(
     trust_remote_code: bool = True,
     load_in_8bit: bool = False,
     load_in_4bit: bool = False,
+    cache_dir: str = None,
+    low_cpu_mem_usage: bool = True,
+    set_seqlen: bool = False,
 ) -> PreTrainedModel:
-    """Load a causal language model."""
+    """
+    Load a causal language model.
+
+    Args:
+        model_name: Model name or path
+        device_map: Device map for model placement
+        torch_dtype: Data type for model weights
+        trust_remote_code: Trust remote code from HuggingFace
+        load_in_8bit: Load model in 8-bit quantization
+        load_in_4bit: Load model in 4-bit quantization
+        cache_dir: Cache directory for model weights
+        low_cpu_mem_usage: Use low CPU memory mode
+        set_seqlen: If True, set model.seqlen attribute based on config
+
+    Returns:
+        Loaded model
+    """
     logger.info(f"Loading model: {model_name}")
 
     quantization_config = None
@@ -57,7 +76,17 @@ def load_model(
         torch_dtype=torch_dtype,
         trust_remote_code=trust_remote_code,
         quantization_config=quantization_config,
+        cache_dir=cache_dir,
+        low_cpu_mem_usage=low_cpu_mem_usage,
     )
+
+    # Set seqlen attribute for pruning compatibility
+    if set_seqlen:
+        if hasattr(model.config, 'max_position_embeddings'):
+            model.seqlen = model.config.max_position_embeddings
+        else:
+            model.seqlen = 2048  # default for CodeLlama
+        logger.info(f"Model seqlen set to: {model.seqlen}")
 
     logger.info(
         f"Model loaded on device(s): {model.hf_device_map if hasattr(model, 'hf_device_map') else 'N/A'}"

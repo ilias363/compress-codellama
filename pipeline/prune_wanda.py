@@ -13,41 +13,16 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.config import SEED, MODEL_CONFIG, PRUNING_CONFIG, setup_logging
+from utils.model_utils import load_model, load_tokenizer
 from utils.io_utils import save_statistics
 from lib.wanda.prune import prune_wanda, check_sparsity
 
 
 logger = logging.getLogger(__name__)
-
-
-def load_model(model_name: str, cache_dir: Path):
-    """
-    Load CodeLlama model.
-
-    Args:
-        model_name: Model name or path
-        cache_dir: Cache directory for model weights
-
-    Returns:
-        Loaded model
-    """
-    logger.info(f"Loading model: {model_name}")
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name, torch_dtype=torch.float16, cache_dir=cache_dir, low_cpu_mem_usage=True, device_map="auto"
-    )
-
-    if hasattr(model.config, 'max_position_embeddings'):
-        model.seqlen = model.config.max_position_embeddings
-    else:
-        model.seqlen = 2048  # default for CodeLlama
-
-    logger.info(f"Model loaded. Sequence length: {model.seqlen}")
-    return model
 
 
 def main():
@@ -152,14 +127,10 @@ def main():
     else:
         logger.info(f"Using unstructured sparsity with ratio {args.sparsity_ratio}")
 
-    model = load_model(args.model, args.cache_dir)
+    model = load_model(args.model, cache_dir=args.cache_dir, set_seqlen=True)
     model.eval()
 
-    logger.info("Loading tokenizer")
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        logger.info("Set pad_token to eos_token")
+    tokenizer = load_tokenizer(args.model)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if hasattr(model, 'hf_device_map') and "lm_head" in model.hf_device_map:
