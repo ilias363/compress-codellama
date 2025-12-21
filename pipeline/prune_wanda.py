@@ -17,12 +17,11 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.config import SEED, MODEL_CONFIG, PRUNING_CONFIG
+from utils.config import SEED, MODEL_CONFIG, PRUNING_CONFIG, setup_logging
 from utils.io_utils import save_statistics
 from lib.wanda.prune import prune_wanda, check_sparsity
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -137,14 +136,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.quiet:
-        logging.getLogger().setLevel(logging.ERROR)
-    elif args.verbose >= 2:
-        logging.getLogger().setLevel(logging.DEBUG)
-    elif args.verbose == 1:
-        logging.getLogger().setLevel(logging.INFO)
-    else:
-        logging.getLogger().setLevel(logging.WARNING)
+    setup_logging(verbose=args.verbose, quiet=args.quiet)
 
     logger.info(f"Setting random seed: {args.seed}")
     np.random.seed(args.seed)
