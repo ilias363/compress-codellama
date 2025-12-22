@@ -88,6 +88,11 @@ class SavePeftModelCallback(transformers.TrainerCallback):
         if os.path.exists(pytorch_model_path):
             os.remove(pytorch_model_path)
 
+        # Also remove model.safetensors if present
+        safetensors_path = os.path.join(checkpoint_folder, "model.safetensors")
+        if os.path.exists(safetensors_path):
+            os.remove(safetensors_path)
+
     def on_save(self, args, state, control, **kwargs):
         self.save_model(args, state, kwargs)
         return control

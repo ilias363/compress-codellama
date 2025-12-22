@@ -11,6 +11,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import torch
 from transformers import (
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
@@ -229,7 +230,7 @@ def main():
         '--bf16',
         action='store_true',
         default=FINETUNING_CONFIG['bf16'],
-        help='Use bfloat16 precision (recommended for A100/H100)',
+        help='Use bfloat16 precision',
     )
     parser.add_argument(
         '--fp16',
@@ -299,6 +300,13 @@ def main():
 
     logger.info(f"Setting random seed: {args.seed}")
     set_seed(args.seed)
+
+    if args.bf16 and args.fp16:
+        logger.error("Cannot use both --bf16 and --fp16. Choose one.")
+        sys.exit(1)
+
+    if not args.bf16 and not args.fp16:
+        logger.warning("Neither --bf16 nor --fp16 specified. Training will be slower in fp32.")
 
     if not os.path.exists(args.dataset):
         logger.error(f"Training dataset not found: {args.dataset}")
