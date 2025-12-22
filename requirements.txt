@@ -1,8 +1,12 @@
 # Core dependencies
-torch>=2.0.0
+torch>=2.8.0
 transformers>=4.36.0,<4.45.0
-accelerate>=0.25.0,<1.0.0
-datasets>=2.14.0
+accelerate>=1.11.0
+datasets>=4.4.1
+
+# QLoRA dependencies
+bitsandbytes>=0.49.0
+peft>=0.17.1
 
 # Utilities
 tqdm>=4.67.1
