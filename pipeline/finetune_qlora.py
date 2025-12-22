@@ -55,6 +55,12 @@ def main():
         default=f"{PATHS_CONFIG['cache_dir']}/llm_weights",
         help='Cache directory for model weights',
     )
+    parser.add_argument(
+        '--hf_token',
+        type=str,
+        default=None,
+        help='HuggingFace auth token for accessing private/gated models',
+    )
 
     # Dataset arguments
     parser.add_argument(
@@ -340,6 +346,7 @@ def main():
         checkpoint_dir=checkpoint_dir,
         bf16=args.bf16,
         fp16=args.fp16,
+        use_auth_token=args.hf_token,
     )
 
     # Get parameter info
