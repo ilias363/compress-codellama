@@ -107,7 +107,38 @@ def get_default_config() -> Dict[str, Any]:
             "seqlen": 2048,
             "batch_size": 1,
         },
-        "qlora": {},
+        "finetuning": {
+            "method": "qlora",
+            "source_max_len": 1024,
+            "target_max_len": 512,
+            "max_train_samples": None,
+            "eval_dataset_size": 500,
+            "bits": 4,
+            "double_quant": True,
+            "quant_type": "nf4",
+            "lora_r": 64,
+            "lora_alpha": 16,
+            "lora_dropout": 0.05,
+            "num_train_epochs": 2,
+            "max_steps": -1,
+            "per_device_train_batch_size": 2,
+            "per_device_eval_batch_size": 2,
+            "gradient_accumulation_steps": 8,
+            "learning_rate": 0.0002,
+            "lr_scheduler_type": "constant",
+            "warmup_ratio": 0.03,
+            "weight_decay": 0.0,
+            "max_grad_norm": 0.3,
+            "gradient_checkpointing": True,
+            "max_memory_mb": 13500,
+            "group_by_length": True,
+            "bf16": False,
+            "fp16": True,
+            "logging_steps": 10,
+            "save_steps": 250,
+            "save_total_limit": 40,
+            "eval_steps": 250,
+        },
         "quantization": {},
     }
 
@@ -121,7 +152,7 @@ DATASET_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("dataset_prep", get_default_co
 MODEL_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("model", get_default_config()["model"])
 PRUNING_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("pruning", get_default_config()["pruning"])
 EVALUATION_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("evaluation", get_default_config()["evaluation"])
-QLORA_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("qlora", get_default_config()["qlora"])
+FINETUNING_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("finetuning", get_default_config()["finetuning"])
 QUANTIZATION_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("quantization", get_default_config()["quantization"])
 
 
@@ -133,7 +164,7 @@ def get_config_section(section: str) -> Dict[str, Any]:
         "model": MODEL_CONFIG,
         "pruning": PRUNING_CONFIG,
         "evaluation": EVALUATION_CONFIG,
-        "qlora": QLORA_CONFIG,
+        "finetuning": FINETUNING_CONFIG,
         "quantization": QUANTIZATION_CONFIG,
     }
     return sections.get(section, {})
@@ -166,7 +197,7 @@ def reload_config(config_path: Optional[Path] = None) -> None:
     Args:
         config_path: Path to config file. Defaults to configs/default.json
     """
-    global _FULL_CONFIG, SEED, PATHS_CONFIG, DATASET_CONFIG, MODEL_CONFIG, PRUNING_CONFIG, EVALUATION_CONFIG, QLORA_CONFIG, QUANTIZATION_CONFIG
+    global _FULL_CONFIG, SEED, PATHS_CONFIG, DATASET_CONFIG, MODEL_CONFIG, PRUNING_CONFIG, EVALUATION_CONFIG, FINETUNING_CONFIG, QUANTIZATION_CONFIG
 
     _FULL_CONFIG = load_config(config_path)
     SEED = _FULL_CONFIG["seed"]
@@ -175,5 +206,5 @@ def reload_config(config_path: Optional[Path] = None) -> None:
     MODEL_CONFIG = _FULL_CONFIG["model"]
     PRUNING_CONFIG = _FULL_CONFIG["pruning"]
     EVALUATION_CONFIG = _FULL_CONFIG["evaluation"]
-    QLORA_CONFIG = _FULL_CONFIG["qlora"]
+    FINETUNING_CONFIG = _FULL_CONFIG["finetuning"]
     QUANTIZATION_CONFIG = _FULL_CONFIG["quantization"]

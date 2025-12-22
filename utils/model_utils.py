@@ -122,3 +122,65 @@ def check_sparsity(model: nn.Module) -> float:
             total_params += total
 
     return total_zeros / total_params if total_params > 0 else 0.0
+
+
+def get_trainable_parameters(model: nn.Module, bits: int = 32) -> dict:
+    """
+    Get detailed information about trainable parameters in the model.
+    
+    Args:
+        model: The model to analyze
+        bits: Quantization bits (4, 8, 16, or 32). For 4-bit quantized models,
+              the trainable param count is divided by 2 as they use half the
+              storage of 8-bit parameters.
+
+    Returns:
+        Dict with trainable_params, all_params, trainable_percent
+    """
+    trainable_params = 0
+    all_params = 0
+
+    for _, param in model.named_parameters():
+        all_params += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+
+    # For 4-bit quantized models, trainable params are effectively half
+    # because 4-bit uses half the storage of 8-bit
+    if bits == 4:
+        trainable_params_display = trainable_params / 2
+    else:
+        trainable_params_display = trainable_params
+
+    trainable_pct = 100 * trainable_params / all_params if all_params > 0 else 0
+
+    return {
+        "trainable_params": int(trainable_params_display),
+        "trainable_params_raw": trainable_params,
+        "all_params": all_params,
+        "trainable_percent": trainable_pct,
+    }
+
+
+def get_dtype_distribution(model: nn.Module) -> dict:
+    """
+    Get distribution of parameter data types in the model.
+
+    Returns:
+        Dict mapping dtype to count and percentage
+    """
+    dtypes = {}
+    total = 0
+
+    for _, p in model.named_parameters():
+        dtype = str(p.dtype)
+        if dtype not in dtypes:
+            dtypes[dtype] = 0
+        dtypes[dtype] += p.numel()
+        total += p.numel()
+
+    result = {}
+    for dtype, count in dtypes.items():
+        result[dtype] = {"count": count, "percentage": 100 * count / total if total > 0 else 0}
+
+    return result
