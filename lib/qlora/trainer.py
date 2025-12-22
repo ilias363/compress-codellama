@@ -199,8 +199,6 @@ def get_qlora_model(
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
         cache_dir=cache_dir,
-        load_in_4bit=(bits == 4),
-        load_in_8bit=(bits == 8),
         device_map=device_map,
         max_memory=max_memory,
         quantization_config=quantization_config,
@@ -241,15 +239,24 @@ def get_qlora_model(
         # Note that these are present in the vocabulary.
         # Note also that `model.config.pad_token_id` is 0 which corresponds to `<unk>` token.
         logger.info('Adding special tokens for LLaMA tokenizer.')
-        tokenizer.add_special_tokens(
-            {
-                "eos_token": tokenizer.convert_ids_to_tokens(model.config.eos_token_id),
-                "bos_token": tokenizer.convert_ids_to_tokens(model.config.bos_token_id),
-                "unk_token": tokenizer.convert_ids_to_tokens(
-                    model.config.pad_token_id if model.config.pad_token_id != -1 else tokenizer.pad_token_id
-                ),
-            }
+        special_tokens = {}
+
+        if model.config.eos_token_id is not None:
+            special_tokens["eos_token"] = tokenizer.convert_ids_to_tokens(model.config.eos_token_id)
+
+        if model.config.bos_token_id is not None:
+            special_tokens["bos_token"] = tokenizer.convert_ids_to_tokens(model.config.bos_token_id)
+
+        unk_id = (
+            model.config.pad_token_id
+            if model.config.pad_token_id not in (-1, None)
+            else tokenizer.pad_token_id
         )
+        if unk_id is not None:
+            special_tokens["unk_token"] = tokenizer.convert_ids_to_tokens(unk_id)
+
+        if special_tokens:
+            tokenizer.add_special_tokens(special_tokens)
 
     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=use_gradient_checkpointing)
 
