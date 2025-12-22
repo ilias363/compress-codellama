@@ -399,6 +399,7 @@ def main():
         report_to="none",
         seed=args.seed,
         optim="paged_adamw_32bit",
+        ddp_find_unused_parameters=False,
     )
 
     trainer = Seq2SeqTrainer(
