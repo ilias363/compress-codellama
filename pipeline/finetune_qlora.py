@@ -354,7 +354,7 @@ def main():
         checkpoint_dir=checkpoint_dir,
         bf16=args.bf16,
         fp16=args.fp16,
-        use_auth_token=args.hf_token,
+        hf_token=args.hf_token,
     )
 
     # Get parameter info

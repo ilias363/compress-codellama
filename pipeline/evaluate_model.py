@@ -54,6 +54,12 @@ def main():
         help='Path to save evaluation results (JSON)'
     )
     parser.add_argument('--seed', type=int, default=SEED, help='Random seed')
+    parser.add_argument(
+        '--hf_token',
+        type=str,
+        default=None,
+        help='HuggingFace auth token for accessing private/gated models',
+    )
     parser.add_argument("--verbose", "-v", action="count", default=0, help="Increase logging verbosity")
     parser.add_argument("--quiet", "-q", action="store_true", help="Suppress all logging except errors")
 
@@ -65,8 +71,8 @@ def main():
 
     torch.manual_seed(args.seed)
 
-    model = load_model(args.model, cache_dir=args.cache_dir, set_seqlen=True)
-    tokenizer = load_tokenizer(args.model)
+    model = load_model(args.model, cache_dir=args.cache_dir, set_seqlen=True, hf_token=args.hf_token)
+    tokenizer = load_tokenizer(args.model, hf_token=args.hf_token)
 
     sparsity = check_sparsity(model)
     model_size_mb = get_model_size_mb(model)

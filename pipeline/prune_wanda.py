@@ -96,6 +96,12 @@ def main():
     )
 
     parser.add_argument('--seed', type=int, default=SEED, help=f'Random seed')
+    parser.add_argument(
+        '--hf_token',
+        type=str,
+        default=None,
+        help='HuggingFace auth token for accessing private/gated models',
+    )
 
     parser.add_argument(
         "--verbose",
@@ -131,10 +137,10 @@ def main():
     else:
         logger.info(f"Using unstructured sparsity with ratio {args.sparsity_ratio}")
 
-    model = load_model(args.model, cache_dir=args.cache_dir, set_seqlen=True)
+    model = load_model(args.model, cache_dir=args.cache_dir, set_seqlen=True, hf_token=args.hf_token)
     model.eval()
 
-    tokenizer = load_tokenizer(args.model)
+    tokenizer = load_tokenizer(args.model, hf_token=args.hf_token)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if hasattr(model, 'hf_device_map') and "lm_head" in model.hf_device_map:

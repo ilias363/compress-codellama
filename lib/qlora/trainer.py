@@ -146,7 +146,7 @@ def get_qlora_model(
     checkpoint_dir: Optional[str] = None,
     fp16: bool = False,
     bf16: bool = True,
-    use_auth_token: Optional[str] = None,
+    hf_token: Optional[str] = None,
 ):
     """
     Load a model with QLoRA configuration.
@@ -167,7 +167,7 @@ def get_qlora_model(
         checkpoint_dir: Path to existing PEFT checkpoint to resume from
         fp16: Use float16 precision
         bf16: Use bfloat16 precision
-        use_auth_token: HuggingFace auth token for accessing private/gated models
+        hf_token: HuggingFace auth token for accessing private/gated models
 
     Returns:
         tuple: (model, tokenizer)
@@ -209,7 +209,7 @@ def get_qlora_model(
         quantization_config=quantization_config,
         torch_dtype=compute_dtype,
         trust_remote_code=trust_remote_code,
-        token=use_auth_token,
+        token=hf_token,
     )
 
     if compute_dtype == torch.float16 and bits == 4:
@@ -227,7 +227,7 @@ def get_qlora_model(
         padding_side="right",
         use_fast=False,
         trust_remote_code=trust_remote_code,
-        token=use_auth_token,
+        token=hf_token,
     )
 
     if tokenizer._pad_token is None:

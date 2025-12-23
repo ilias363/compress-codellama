@@ -82,6 +82,12 @@ def main():
     )
 
     parser.add_argument('--seed', type=int, default=SEED, help='Random seed')
+    parser.add_argument(
+        '--hf_token',
+        type=str,
+        default=None,
+        help='HuggingFace auth token for accessing private/gated models',
+    )
     parser.add_argument("--verbose", "-v", action="count", default=0, help="Increase logging verbosity")
     parser.add_argument("--quiet", "-q", action="store_true", help="Suppress all logging except errors")
 
@@ -119,6 +125,7 @@ def main():
         torch_dtype=torch_dtype,
         device_map="auto",
         trust_remote_code=True,
+        token=args.hf_token,
     )
 
     logger.info("Loading tokenizer...")
@@ -126,6 +133,7 @@ def main():
         args.base_model,
         cache_dir=args.cache_dir,
         trust_remote_code=True,
+        token=args.hf_token,
     )
 
     logger.info("Loading PEFT adapter...")

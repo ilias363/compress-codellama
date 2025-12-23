@@ -15,10 +15,15 @@ logger = logging.getLogger(__name__)
 def load_tokenizer(
     model_name: str,
     trust_remote_code: bool = True,
+    hf_token: str = None,
 ) -> PreTrainedTokenizer:
     """Load and configure a tokenizer."""
     logger.info(f"Loading tokenizer: {model_name}")
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=trust_remote_code)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name,
+        trust_remote_code=trust_remote_code,
+        token=hf_token,
+    )
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -37,6 +42,7 @@ def load_model(
     cache_dir: str = None,
     low_cpu_mem_usage: bool = True,
     set_seqlen: bool = False,
+    hf_token: str = None,
 ) -> PreTrainedModel:
     """
     Load a causal language model.
@@ -78,6 +84,7 @@ def load_model(
         quantization_config=quantization_config,
         cache_dir=cache_dir,
         low_cpu_mem_usage=low_cpu_mem_usage,
+        token=hf_token,
     )
 
     # Set seqlen attribute for pruning compatibility
@@ -127,7 +134,7 @@ def check_sparsity(model: nn.Module) -> float:
 def get_trainable_parameters(model: nn.Module, bits: int = 32) -> dict:
     """
     Get detailed information about trainable parameters in the model.
-    
+
     Args:
         model: The model to analyze
         bits: Quantization bits (4, 8, 16, or 32). For 4-bit quantized models,
