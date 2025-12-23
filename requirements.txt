@@ -8,5 +8,8 @@ datasets>=4.4.1
 bitsandbytes>=0.49.0
 peft>=0.17.1
 
+# AWQ quantization
+autoawq>=0.2.0
+
 # Utilities
 tqdm>=4.67.1

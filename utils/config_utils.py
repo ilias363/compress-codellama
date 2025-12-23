@@ -139,7 +139,16 @@ def get_default_config() -> Dict[str, Any]:
             "save_total_limit": 3,
             "eval_steps": 100,
         },
-        "quantization": {},
+        "quantization": {
+            "method": "awq",
+            "w_bit": 4,
+            "q_group_size": 64,
+            "zero_point": True,
+            "version": "GEMM",
+            "n_samples": 128,
+            "seqlen": 1024,
+            "n_parallel_calib_samples": 32,
+        },
     }
 
 
