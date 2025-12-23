@@ -83,7 +83,7 @@ def get_default_config() -> Dict[str, Any]:
         },
         "dataset_prep": {
             "sources": ["magicoder", "wizardcoder", "code_alpaca"],
-            "samples_per_source": [10000, 5000, 5000],
+            "samples_per_source": [5000, 3000, 2000],
             "train_file": "train.json",
             "calib_file": "calib_512.json",
             "awq_calib_file": "calib_awq_128.json",
@@ -136,7 +136,7 @@ def get_default_config() -> Dict[str, Any]:
             "fp16": False,
             "logging_steps": 10,
             "save_steps": 50,
-            "save_total_limit": 5,
+            "save_total_limit": 3,
             "eval_steps": 100,
         },
         "quantization": {},
