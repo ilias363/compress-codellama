@@ -4,6 +4,9 @@ Merges QLoRA/LoRA adapters into the base model for efficient inference.
 
 This script takes a base model and a PEFT adapter, merges them together,
 and saves the resulting model which can be used without the PEFT library.
+
+IMPORTANT: This script preserves sparsity from pruned models by reapplying
+the sparsity mask after merging LoRA weights.
 """
 
 import argparse
@@ -27,6 +30,12 @@ from utils.config_utils import (
     ensure_paths_exist,
 )
 from utils.io_utils import save_json
+from utils.model_utils import (
+    check_sparsity,
+    extract_sparsity_masks,
+    apply_sparsity_masks,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +78,18 @@ def main():
         help='Torch dtype for the merged model',
     )
     parser.add_argument(
+        '--preserve_sparsity',
+        action='store_true',
+        default=True,
+        help='Preserve sparsity from pruned base model after merging LoRA weights (default: True)',
+    )
+    parser.add_argument(
+        '--no_preserve_sparsity',
+        action='store_true',
+        default=False,
+        help='Disable sparsity preservation (use this if base model is not pruned)',
+    )
+    parser.add_argument(
         '--save_safetensors',
         action='store_true',
         default=True,
@@ -93,6 +114,9 @@ def main():
 
     args = parser.parse_args()
 
+    if args.no_preserve_sparsity:
+        args.preserve_sparsity = False
+
     setup_logging(verbose=args.verbose, quiet=args.quiet)
     ensure_paths_exist()
 
@@ -114,6 +138,7 @@ def main():
     logger.info(f"  Adapter path: {args.adapter_path}")
     logger.info(f"  Output directory: {args.output_dir}")
     logger.info(f"  Torch dtype: {args.torch_dtype}")
+    logger.info(f"  Preserve sparsity: {args.preserve_sparsity}")
     logger.info("=" * 70)
 
     merge_start_time = time.time()
@@ -127,6 +152,16 @@ def main():
         trust_remote_code=True,
         token=args.hf_token,
     )
+
+    # Extract sparsity masks BEFORE loading the adapter
+    sparsity_masks = None
+    base_sparsity = 0.0
+    if args.preserve_sparsity:
+        logger.info("Extracting sparsity masks from base (pruned) model...")
+        sparsity_masks = extract_sparsity_masks(base_model)
+        base_sparsity = check_sparsity(base_model)
+        logger.info(f"Base model sparsity: {base_sparsity:.4f} ({base_sparsity*100:.2f}%)")
+        logger.info(f"Extracted {len(sparsity_masks)} layer masks")
 
     logger.info("Loading tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(
@@ -152,6 +187,22 @@ def main():
     logger.info("Merging adapter into base model...")
     merged_model = model.merge_and_unload()
 
+    if args.preserve_sparsity:
+        sparsity_after_merge = check_sparsity(merged_model)
+        logger.info(
+            f"Sparsity after merge (before mask reapplication): {sparsity_after_merge:.4f} ({sparsity_after_merge*100:.2f}%)"
+        )
+
+    if args.preserve_sparsity and sparsity_masks is not None:
+        logger.info("Reapplying sparsity masks to preserve pruning...")
+        applied_count = apply_sparsity_masks(merged_model, sparsity_masks)
+        logger.info(f"Applied sparsity masks to {applied_count} layers")
+
+        final_sparsity = check_sparsity(merged_model)
+        logger.info(
+            f"Final sparsity after mask reapplication: {final_sparsity:.4f} ({final_sparsity*100:.2f}%)"
+        )
+
     total_params_after = sum(p.numel() for p in merged_model.parameters())
     logger.info(f"Total parameters (merged): {total_params_after:,}")
 
@@ -175,10 +226,14 @@ def main():
     )
     model_size_mb = model_size_mb / (1024 * 1024)
 
+    final_sparsity = check_sparsity(merged_model) if args.preserve_sparsity else 0.0
+
     logger.info("=" * 70)
     logger.info("Merge completed!")
     logger.info(f"  Time: {merge_time:.2f}s")
     logger.info(f"  Output size: {model_size_mb:.2f} MB")
+    if args.preserve_sparsity:
+        logger.info(f"  Final sparsity: {final_sparsity:.4f} ({final_sparsity*100:.2f}%)")
     logger.info(f"  Saved to: {args.output_dir}")
     logger.info("=" * 70)
 
@@ -188,6 +243,9 @@ def main():
         "output_dir": args.output_dir,
         "torch_dtype": args.torch_dtype,
         "safetensors": use_safetensors,
+        "preserve_sparsity": args.preserve_sparsity,
+        "base_sparsity": base_sparsity if args.preserve_sparsity else None,
+        "final_sparsity": final_sparsity if args.preserve_sparsity else None,
         "total_params_with_adapter": total_params_before,
         "trainable_adapter_params": trainable_params,
         "total_params_merged": total_params_after,

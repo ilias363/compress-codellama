@@ -131,6 +131,72 @@ def check_sparsity(model: nn.Module) -> float:
     return total_zeros / total_params if total_params > 0 else 0.0
 
 
+def find_linear_layers(module: nn.Module, layers=None, name: str = '') -> dict:
+    """
+    Recursively find linear layers in a module.
+
+    Args:
+        module: PyTorch module to search
+        layers: List of layer types to find (default: [nn.Linear])
+        name: Current module name prefix
+
+    Returns:
+        dict: Dictionary mapping layer names to layer modules
+    """
+    if layers is None:
+        layers = [nn.Linear]
+    if type(module) in layers:
+        return {name: module}
+    res = {}
+    for name1, child in module.named_children():
+        res.update(find_linear_layers(child, layers=layers, name=name + '.' + name1 if name != '' else name1))
+    return res
+
+
+def extract_sparsity_masks(model: nn.Module) -> dict:
+    """
+    Extract sparsity masks (where weights are zero) from the model.
+
+    This is useful for preserving sparsity after operations like LoRA merging
+    that would otherwise fill in the zeros.
+
+    Args:
+        model: The model to extract masks from
+
+    Returns:
+        dict: Dictionary mapping layer names to their sparsity masks (True where weight is zero)
+    """
+    masks = {}
+    layers = find_linear_layers(model)
+    for name, layer in layers.items():
+        if hasattr(layer, 'weight') and layer.weight is not None:
+            masks[name] = (layer.weight.data == 0).clone()
+    return masks
+
+
+def apply_sparsity_masks(model: nn.Module, masks: dict) -> int:
+    """
+    Apply sparsity masks to the model, setting weights to zero where the mask is True.
+
+    This is useful for restoring sparsity after operations like LoRA merging
+    that would otherwise fill in the zeros.
+
+    Args:
+        model: The model to apply masks to
+        masks: Dictionary of sparsity masks from extract_sparsity_masks
+
+    Returns:
+        int: Number of layers that had masks applied
+    """
+    layers = find_linear_layers(model)
+    applied_count = 0
+    for name, layer in layers.items():
+        if name in masks and hasattr(layer, 'weight') and layer.weight is not None:
+            layer.weight.data[masks[name]] = 0
+            applied_count += 1
+    return applied_count
+
+
 def get_trainable_parameters(model: nn.Module, bits: int = 32) -> dict:
     """
     Get detailed information about trainable parameters in the model.
