@@ -1,4 +1,5 @@
 import logging
+import os
 import torch
 import torch.nn as nn
 from transformers import (
@@ -7,9 +8,61 @@ from transformers import (
     BitsAndBytesConfig,
     PreTrainedModel,
     PreTrainedTokenizer,
+    PretrainedConfig,
 )
 
 logger = logging.getLogger(__name__)
+
+# Monkey-patch PretrainedConfig to handle None quantization_config
+# This fixes a bug in transformers where to_dict()/to_diff_dict() is called on None quantization_config
+_original_to_dict = PretrainedConfig.to_dict
+_original_to_diff_dict = PretrainedConfig.to_diff_dict
+
+
+def _patched_to_dict(self):
+    """Patched to_dict that handles None quantization_config."""
+    output = {}
+    for key, value in self.__dict__.items():
+        if key == "quantization_config":
+            if value is not None:
+                if hasattr(value, 'to_dict'):
+                    output[key] = value.to_dict()
+                else:
+                    output[key] = value
+            # Skip if None - don't add to output
+        elif isinstance(value, PretrainedConfig):
+            output[key] = value.to_dict()
+        else:
+            output[key] = value
+    return output
+
+
+def _patched_to_diff_dict(self):
+    """Patched to_diff_dict that handles None quantization_config."""
+    # Temporarily set quantization_config to a dummy if None to avoid the error
+    quant_config_was_none = False
+    if getattr(self, 'quantization_config', None) is None:
+        quant_config_was_none = True
+        # Remove the attribute temporarily if it exists and is None
+        if hasattr(self, 'quantization_config'):
+            delattr(self, 'quantization_config')
+
+    try:
+        result = _original_to_diff_dict(self)
+    finally:
+        # Restore None if it was None
+        if quant_config_was_none:
+            self.quantization_config = None
+
+    # Remove quantization_config from result if it's None
+    if 'quantization_config' in result and result['quantization_config'] is None:
+        del result['quantization_config']
+
+    return result
+
+
+PretrainedConfig.to_dict = _patched_to_dict
+PretrainedConfig.to_diff_dict = _patched_to_diff_dict
 
 
 def load_tokenizer(
@@ -35,7 +88,7 @@ def load_tokenizer(
 def load_model(
     model_name: str,
     device_map: str = "auto",
-    torch_dtype: torch.dtype = torch.float16,
+    torch_dtype="auto",  # Use "auto" to preserve quantization format
     trust_remote_code: bool = True,
     load_in_8bit: bool = False,
     load_in_4bit: bool = False,
@@ -50,7 +103,7 @@ def load_model(
     Args:
         model_name: Model name or path
         device_map: Device map for model placement
-        torch_dtype: Data type for model weights
+        torch_dtype: Data type for model weights. Use "auto" for quantized models.
         trust_remote_code: Trust remote code from HuggingFace
         load_in_8bit: Load model in 8-bit quantization
         load_in_4bit: Load model in 4-bit quantization
@@ -67,7 +120,7 @@ def load_model(
     if load_in_4bit:
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch_dtype,
+            bnb_4bit_compute_dtype=torch.float16 if torch_dtype == "auto" else torch_dtype,
             bnb_4bit_use_double_quant=True,
             bnb_4bit_quant_type="nf4",
         )
@@ -76,8 +129,25 @@ def load_model(
         quantization_config = BitsAndBytesConfig(load_in_8bit=True)
         logger.info("Using 8-bit quantization with BitsAndBytes")
 
+    # Pre-load config to check and fix quantization_config issues
+    from transformers import AutoConfig
+    config = AutoConfig.from_pretrained(
+        model_name,
+        trust_remote_code=trust_remote_code,
+        token=hf_token,
+        cache_dir=cache_dir,
+    )
+    
+    # Fix: If quantization_config is None but was expected, remove it to avoid errors
+    # This happens when a model has compressed-tensors format but config parsing fails
+    if hasattr(config, 'quantization_config') and config.quantization_config is None:
+        delattr(config, 'quantization_config')
+        logger.info("Removed None quantization_config from config to avoid loading errors")
+
+    # For quantized models (compressed-tensors format), use dtype="auto"
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
+        config=config,
         device_map=device_map,
         torch_dtype=torch_dtype,
         trust_remote_code=trust_remote_code,

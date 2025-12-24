@@ -1,6 +1,7 @@
 # Core dependencies
 torch>=2.8.0
-transformers>=4.36.0,<4.45.0
+# NOTE: llmcompressor requires transformers>=4.45.0 for CompressedTensorsConfig
+transformers>=4.45.0
 accelerate>=1.11.0
 datasets>=4.4.1
 
@@ -8,8 +9,13 @@ datasets>=4.4.1
 bitsandbytes>=0.49.0
 peft>=0.17.1
 
-# AWQ quantization
-autoawq>=0.2.0
+# AWQ quantization (legacy)
+# NOTE: May conflict with llmcompressor due to transformers version requirements
+# autoawq>=0.2.0
+
+# LLM Compressor quantization
+# Requires transformers>=4.45.0
+llmcompressor>=0.5.0
 
 # Utilities
 tqdm>=4.67.1
