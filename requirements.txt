@@ -9,12 +9,7 @@ datasets>=4.4.1
 bitsandbytes>=0.49.0
 peft>=0.17.1
 
-# AWQ quantization (legacy)
-# NOTE: May conflict with llmcompressor due to transformers version requirements
-# autoawq>=0.2.0
-
 # LLM Compressor quantization
-# Requires transformers>=4.45.0
 llmcompressor>=0.5.0
 
 # Utilities
