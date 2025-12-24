@@ -104,8 +104,33 @@ def get_default_config() -> Dict[str, Any]:
             "use_variant": False,
         },
         "evaluation": {
-            "seqlen": 2048,
-            "batch_size": 1,
+            "perplexity": {
+                "enabled": True,
+                "dataset": "wikitext-2",
+                "seqlen": 2048,
+                "batch_size": 4,
+            },
+            "code": {
+                "enabled": True,
+                "tasks": ["humaneval", "mbpp"],
+                "n_samples": 1,
+                "batch_size": 1,
+                "temperature": 0.2,
+                "top_p": 0.95,
+                "max_length_generation": 512,
+                "precision": "bf16",
+                "use_plus": False,
+                "save_generations": True,
+                "allow_code_execution": True,
+            },
+            "efficiency": {
+                "enabled": True,
+                "max_new_tokens": 50,
+                "num_warmup": 3,
+                "num_runs": 10,
+                "benchmark_batches": [1, 4, 8],
+                "prompt": "def fibonacci(n):",
+            },
         },
         "finetuning": {
             "method": "qlora",
@@ -163,6 +188,15 @@ PRUNING_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("pruning", get_default_config(
 EVALUATION_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("evaluation", get_default_config()["evaluation"])
 FINETUNING_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("finetuning", get_default_config()["finetuning"])
 QUANTIZATION_CONFIG: Dict[str, Any] = _FULL_CONFIG.get("quantization", get_default_config()["quantization"])
+
+# Evaluation sub-configs for convenience
+PERPLEXITY_EVAL_CONFIG: Dict[str, Any] = EVALUATION_CONFIG.get(
+    "perplexity", get_default_config()["evaluation"]["perplexity"]
+)
+CODE_EVAL_CONFIG: Dict[str, Any] = EVALUATION_CONFIG.get("code", get_default_config()["evaluation"]["code"])
+EFFICIENCY_EVAL_CONFIG: Dict[str, Any] = EVALUATION_CONFIG.get(
+    "efficiency", get_default_config()["evaluation"]["efficiency"]
+)
 
 
 def get_config_section(section: str) -> Dict[str, Any]:

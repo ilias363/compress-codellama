@@ -1,3 +1,7 @@
+"""
+Perplexity evaluation on WikiText-2 dataset.
+"""
+
 import logging
 from typing import Optional
 
@@ -73,7 +77,7 @@ def evaluate_perplexity(
     nlls = []
     logger.info(f"nsamples {nsamples}")
 
-    for i in tqdm(range(0, nsamples, batch_size), desc="Evaluating"):
+    for i in tqdm(range(0, nsamples, batch_size), desc="Evaluating perplexity"):
         j = min(i + batch_size, nsamples)
 
         # Get batch

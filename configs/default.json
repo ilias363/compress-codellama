@@ -34,8 +34,33 @@
     "use_variant": false
   },
   "evaluation": {
-    "seqlen": 2048,
-    "batch_size": 1
+    "perplexity": {
+      "enabled": true,
+      "dataset": "wikitext-2",
+      "seqlen": 2048,
+      "batch_size": 4
+    },
+    "code": {
+      "enabled": true,
+      "tasks": ["humaneval", "mbpp"],
+      "n_samples": 1,
+      "batch_size": 1,
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "max_length_generation": 512,
+      "precision": "bf16",
+      "use_plus": false,
+      "save_generations": true,
+      "allow_code_execution": true
+    },
+    "efficiency": {
+      "enabled": true,
+      "max_new_tokens": 50,
+      "num_warmup": 3,
+      "num_runs": 10,
+      "benchmark_batches": [1, 4, 8],
+      "prompt": "def fibonacci(n):"
+    }
   },
   "finetuning": {
     "method": "qlora",
