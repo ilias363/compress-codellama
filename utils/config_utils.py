@@ -166,13 +166,11 @@ def get_default_config() -> Dict[str, Any]:
         },
         "quantization": {
             "method": "awq",
-            "w_bit": 4,
-            "q_group_size": 64,
-            "zero_point": True,
-            "version": "GEMM",
+            "scheme": "W4A16",
+            "ignore_layers": ["lm_head"],
+            "duo_scaling": True,
             "n_samples": 128,
-            "seqlen": 1024,
-            "n_parallel_calib_samples": 32,
+            "max_seq_length": 1024,
         },
     }
 

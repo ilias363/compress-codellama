@@ -56,14 +56,14 @@ def main():
     parser.add_argument(
         "--method",
         type=str,
-        default="awq",
+        default=QUANTIZATION_CONFIG["method"],
         choices=["awq", "gptq", "fp8"],
         help="Quantization method: awq (recommended), gptq, or fp8",
     )
     parser.add_argument(
         "--scheme",
         type=str,
-        default=None,
+        default=QUANTIZATION_CONFIG["scheme"],
         help="Quantization scheme (default: W4A16 for awq/gptq, FP8_DYNAMIC for fp8)",
     )
 
@@ -83,7 +83,7 @@ def main():
     parser.add_argument(
         "--max_seq_length",
         type=int,
-        default=QUANTIZATION_CONFIG["seqlen"],
+        default=QUANTIZATION_CONFIG["max_seq_length"],
         help="Maximum sequence length for calibration",
     )
 
@@ -91,7 +91,7 @@ def main():
     parser.add_argument(
         "--duo_scaling",
         action="store_true",
-        default=True,
+        default=QUANTIZATION_CONFIG["duo_scaling"],
         help="Enable dual scaling for AWQ (better accuracy)",
     )
 
@@ -114,7 +114,7 @@ def main():
         "--ignore_layers",
         type=str,
         nargs="+",
-        default=["lm_head"],
+        default=QUANTIZATION_CONFIG["ignore_layers"],
         help="Layers to skip during quantization",
     )
     parser.add_argument(
@@ -147,12 +147,9 @@ def main():
     logger.info(f"Setting random seed: {args.seed}")
     torch.manual_seed(args.seed)
 
-    # Set default scheme based on method
-    if args.scheme is None:
-        if args.method == "fp8":
-            args.scheme = "FP8_DYNAMIC"
-        else:
-            args.scheme = "W4A16"
+    # Set default scheme based on method if FP8
+    if args.method == "fp8" and args.scheme == "W4A16":
+        args.scheme = "FP8_DYNAMIC"
 
     if args.scheme not in SCHEMES[args.method]:
         logger.warning(
