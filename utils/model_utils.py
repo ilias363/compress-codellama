@@ -131,13 +131,14 @@ def load_model(
 
     # Pre-load config to check and fix quantization_config issues
     from transformers import AutoConfig
+
     config = AutoConfig.from_pretrained(
         model_name,
         trust_remote_code=trust_remote_code,
         token=hf_token,
         cache_dir=cache_dir,
     )
-    
+
     # Fix: If quantization_config is None but was expected, remove it to avoid errors
     # This happens when a model has compressed-tensors format but config parsing fails
     if hasattr(config, 'quantization_config') and config.quantization_config is None:

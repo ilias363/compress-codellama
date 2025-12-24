@@ -2,15 +2,19 @@
 torch>=2.8.0
 # NOTE: llmcompressor requires transformers>=4.45.0 for CompressedTensorsConfig
 transformers>=4.45.0
-accelerate>=1.11.0
-datasets>=4.4.1
+accelerate>=0.20.0
+datasets>=2.14.0
 
 # QLoRA dependencies
-bitsandbytes>=0.49.0
-peft>=0.17.1
+bitsandbytes>=0.41.0
+peft>=0.5.0
 
 # LLM Compressor quantization
 llmcompressor>=0.5.0
+
+# vLLM for optimized inference (especially for quantized models)
+# Has native kernel support for AWQ, GPTQ, compressed-tensors formats
+vllm
 
 # Utilities
 tqdm>=4.67.1

@@ -282,3 +282,140 @@ def get_model_disk_size(model_path: str) -> Dict[str, float]:
         "disk_size_mb": round(total_size / 1024**2, 2),
         "file_count": file_count,
     }
+
+
+# ============================================================================
+# vLLM-based efficiency functions (for quantized models with optimized kernels)
+# ============================================================================
+
+
+def measure_vllm_latency(
+    llm,
+    sampling_params,
+    prompt: str,
+    num_warmup: int = 3,
+    num_runs: int = 10,
+) -> Dict[str, float]:
+    """
+    Measure inference latency with vLLM.
+
+    Args:
+        llm: vLLM LLM instance
+        sampling_params: vLLM SamplingParams instance
+        prompt: Input prompt for generation
+        num_warmup: Number of warmup runs
+        num_runs: Number of timed runs
+
+    Returns:
+        Dictionary with latency metrics
+    """
+    # Warmup runs
+    logger.info(f"Running {num_warmup} warmup iterations...")
+    for _ in range(num_warmup):
+        _ = llm.generate([prompt], sampling_params)
+
+    # Timed runs
+    latencies = []
+    total_tokens = []
+
+    logger.info(f"Running {num_runs} timed iterations...")
+    for i in range(num_runs):
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        start = time.perf_counter()
+        outputs = llm.generate([prompt], sampling_params)
+
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        elapsed = time.perf_counter() - start
+
+        tokens_generated = len(outputs[0].outputs[0].token_ids)
+        latencies.append(elapsed)
+        total_tokens.append(tokens_generated)
+
+    avg_latency = sum(latencies) / len(latencies)
+    avg_tokens = sum(total_tokens) / len(total_tokens)
+    tokens_per_second = avg_tokens / avg_latency if avg_latency > 0 else 0
+
+    return {
+        "avg_latency_seconds": round(avg_latency, 4),
+        "min_latency_seconds": round(min(latencies), 4),
+        "max_latency_seconds": round(max(latencies), 4),
+        "tokens_generated": avg_tokens,
+        "tokens_per_second": round(tokens_per_second, 2),
+        "time_per_token_ms": round((avg_latency / avg_tokens) * 1000, 2) if avg_tokens > 0 else 0,
+        "num_runs": num_runs,
+        "max_new_tokens_setting": sampling_params.max_tokens,
+    }
+
+
+def measure_vllm_throughput(
+    llm,
+    sampling_params,
+    prompt: str,
+    batch_sizes: List[int],
+    num_runs: int = 5,
+) -> Dict[str, Any]:
+    """
+    Measure throughput at different batch sizes with vLLM.
+
+    Args:
+        llm: vLLM LLM instance
+        sampling_params: vLLM SamplingParams instance
+        prompt: Input prompt for generation
+        batch_sizes: List of batch sizes to test
+        num_runs: Number of runs per batch size
+
+    Returns:
+        Dictionary with throughput metrics for each batch size
+    """
+    results = {}
+
+    for batch_size in batch_sizes:
+        try:
+            prompts = [prompt] * batch_size
+            latencies = []
+            total_tokens = []
+
+            # Warmup
+            _ = llm.generate(prompts, sampling_params)
+
+            for _ in range(num_runs):
+                if torch.cuda.is_available():
+                    torch.cuda.reset_peak_memory_stats()
+                    torch.cuda.synchronize()
+
+                start = time.perf_counter()
+                outputs = llm.generate(prompts, sampling_params)
+
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+
+                elapsed = time.perf_counter() - start
+
+                tokens = sum(len(o.outputs[0].token_ids) for o in outputs)
+                latencies.append(elapsed)
+                total_tokens.append(tokens)
+
+            avg_latency = sum(latencies) / len(latencies)
+            avg_tokens = sum(total_tokens) / len(total_tokens)
+            peak_memory = torch.cuda.max_memory_allocated() / 1024**3 if torch.cuda.is_available() else 0
+
+            results[f"batch_{batch_size}"] = {
+                "batch_size": batch_size,
+                "avg_latency_seconds": round(avg_latency, 4),
+                "throughput_tokens_per_second": round(avg_tokens / avg_latency, 2) if avg_latency > 0 else 0,
+                "peak_memory_gb": round(peak_memory, 2),
+            }
+
+            logger.info(
+                f"Batch {batch_size}: {results[f'batch_{batch_size}']['throughput_tokens_per_second']:.2f} tokens/s"
+            )
+
+        except Exception as e:
+            logger.warning(f"Batch size {batch_size} failed: {e}")
+            results[f"batch_{batch_size}"] = {"batch_size": batch_size, "error": str(e)}
+
+    return results
