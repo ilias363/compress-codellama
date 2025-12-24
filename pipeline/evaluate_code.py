@@ -177,7 +177,7 @@ def main():
         logger.info(f"Evaluating on {task}...")
         logger.info("=" * 70)
 
-        output_path = f"{args.output_dir}/{task}_results.json"
+        output_path = f"{args.output_dir}/{task}_results_{int(time.time())}.json"
 
         start_time = time.time()
 
