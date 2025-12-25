@@ -243,15 +243,7 @@ def main():
 
         eval_time = time.time() - start_time
 
-        # Extract and log pass@k metrics
-        if task in results:
-            task_results = results[task]
-            pass_at_k = {k: v for k, v in task_results.items() if k.startswith("pass@")}
-            for metric, score in pass_at_k.items():
-                logger.info(f"{task} {metric}: {score:.4f} ({score*100:.2f}%)")
-            all_results[task] = pass_at_k
-        else:
-            all_results[task] = results
+        all_results[task] = results
 
         all_results[f"{task}_eval_time_seconds"] = round(eval_time, 2)
         logger.info(f"Evaluation time: {eval_time:.2f}s")
