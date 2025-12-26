@@ -32,6 +32,9 @@ def run_bigcode_eval(
     allow_code_execution: bool = True,
     trust_remote_code: bool = True,
     save_generations: bool = True,
+    save_generations_path: str = "generations.json",
+    save_references: bool = True,
+    save_references_path: str = "references.json",
     use_auth_token: bool = False,
     hf_token: Optional[str] = None,
     load_in_8bit: bool = False,
@@ -56,6 +59,9 @@ def run_bigcode_eval(
         allow_code_execution: Allow execution of generated code
         trust_remote_code: Trust remote code for custom models
         save_generations: Save generated solutions
+        save_generations_path: Path for saving the code generations
+        save_references: Whether to save reference solutions/tests
+        save_references_path: Path for saving the references solutions/tests
         use_auth_token: Use HuggingFace auth token (from login)
         hf_token: Explicit HuggingFace token for private/gated models
         load_in_8bit: Load model in 8-bit quantization
@@ -78,6 +84,9 @@ def run_bigcode_eval(
 
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    save_generations_path = str(output_dir / save_generations_path)
+    save_references_path = str(output_dir / save_references_path)
 
     # Build command
     cmd = [
@@ -119,6 +128,11 @@ def run_bigcode_eval(
 
     if save_generations:
         cmd.append("--save_generations")
+        cmd.extend(["--save_generations_path", save_generations_path])
+
+    if save_references:
+        cmd.append("--save_references")
+        cmd.extend(["--save_references_path", save_references_path])
 
     if use_auth_token or hf_token:
         cmd.append("--use_auth_token")

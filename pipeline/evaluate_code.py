@@ -124,7 +124,25 @@ def main():
         '--save_generations',
         action='store_true',
         default=True,
-        help='Save generated code solutions',
+        help='Whether to save code generations',
+    )
+    parser.add_argument(
+        '--save_generations_path',
+        type=str,
+        default=f'generations_{int(time.time())}.json',
+        help='Filename for saving the code generations (saved in output_dir)',
+    )
+    parser.add_argument(
+        '--save_references',
+        action='store_true',
+        default=True,
+        help='Whether to save reference solutions/tests',
+    )
+    parser.add_argument(
+        '--save_references_path',
+        type=str,
+        default=f'references_{int(time.time())}.json',
+        help='Filename for saving the references solutions/tests (saved in output_dir)',
     )
     parser.add_argument(
         '--trust_remote_code',
@@ -199,6 +217,9 @@ def main():
                 use_auth_token=args.use_auth_token,
                 hf_token=args.hf_token,
                 save_generations=args.save_generations,
+                save_generations_path=args.save_generations_path,
+                save_references=args.save_references,
+                save_references_path=args.save_references_path,
                 top_p=args.top_p,
             )
         elif task in ["mbpp", "mbppplus"]:
@@ -218,6 +239,9 @@ def main():
                 use_auth_token=args.use_auth_token,
                 hf_token=args.hf_token,
                 save_generations=args.save_generations,
+                save_generations_path=args.save_generations_path,
+                save_references=args.save_references,
+                save_references_path=args.save_references_path,
                 top_p=args.top_p,
             )
         else:
@@ -238,6 +262,9 @@ def main():
                 use_auth_token=args.use_auth_token,
                 hf_token=args.hf_token,
                 save_generations=args.save_generations,
+                save_generations_path=args.save_generations_path,
+                save_references=args.save_references,
+                save_references_path=args.save_references_path,
                 top_p=args.top_p,
             )
 
